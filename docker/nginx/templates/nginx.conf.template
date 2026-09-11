@@ -59,6 +59,15 @@ server {
         sub_filter "wss://$original_host/mp4_record" "mp4_record";
         sub_filter "wss://$original_host:443/mp4_record" "mp4_record";
 
+        # Issue #2222：WVP 生成的播放地址端口取自 media.http-port(80)，宿主机 80 无服务；
+        # 改写为浏览器实际访问的 host:port（即 nginx 对外端口），由下方 location 反代到 ZLM。
+        sub_filter "ws://$original_host:80/" "ws://$http_host/";
+        sub_filter "ws://$original_host/" "ws://$http_host/";
+        sub_filter "wss://$original_host:443/" "wss://$http_host/";
+        # WebRTC 信令地址同理，改写到 nginx 端口后由上方 ^~ /index/api/webrtc 反代到 ZLM
+        sub_filter "http://$original_host:80/index/api/webrtc" "http://$http_host/index/api/webrtc";
+        sub_filter "http://$original_host/index/api/webrtc" "http://$http_host/index/api/webrtc";
+
         # 设置为off表示替换所有匹配项，而不仅仅是第一个
         sub_filter_once off;
 
@@ -130,5 +139,23 @@ server {
     error_page   500 502 503 504  /50x.html;
     location = /50x.html {
         root   html;
+    }
+
+    # 任意 app 的 ws-flv / http-flv / fmp4 直播流（如拉流代理 app=拉流1），代理到 ZLM
+    location ~ ^/[^/]+/[^/]+\.live\.(flv|mp4)$ {
+        proxy_pass http://polaris-media:80;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 60s;
     }
 }
