@@ -69,6 +69,9 @@ services:
      #- "45540:45540/tcp"   # [收流]RTSPS 无效
       - "${MediaRtp:-10000}:${MediaRtp:-10000}/tcp"   # [收流]RTP   
       - "${MediaRtp:-10000}:${MediaRtp:-10000}/udp"   # [收流]RTP   
+      # [播流]WebRTC，必须与 media/config.ini 的 [rtc] port/tcpPort 一致
+      - "8000:8000/tcp"
+      - "8000:8000/udp"
     volumes:
       - ./volumes/video:/opt/media/bin/www/record/
       - ./logs/media:/opt/media/log/

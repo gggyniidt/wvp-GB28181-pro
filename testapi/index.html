@@ -241,6 +241,138 @@
       font-size: 13px;
     }
 
+    .control-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .control-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .control-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .control-channel {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .control-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) minmax(280px, 1fr);
+      gap: 14px;
+    }
+
+    .control-section {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #f8fafc;
+    }
+
+    .control-section h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #475569;
+    }
+
+    .ptz-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-width: 220px;
+      margin: 0 auto;
+    }
+
+    .ptz-pad button,
+    .control-actions button {
+      min-height: 32px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+    }
+
+    .ptz-pad button:hover:not(:disabled),
+    .control-actions button:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .ptz-pad .stop {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .control-fields {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(70px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .control-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .control-field input,
+    .control-field select {
+      width: 100%;
+      min-height: 30px;
+      padding: 4px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #fff;
+      color: #334155;
+    }
+
+    .control-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: minmax(100px, 1fr) auto;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .preset-row input,
+    .preset-row select {
+      min-height: 30px;
+      padding: 4px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #fff;
+      color: #334155;
+    }
+
+    .control-hint {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .tree,
     .tree ul {
       list-style: none;
@@ -351,6 +483,9 @@
       .status { width: 100%; margin-left: 0; }
       .player-state { width: 100%; margin-left: 0; }
       .tree-panel { padding-left: 8px; padding-right: 8px; }
+      .control-layout { grid-template-columns: 1fr; }
+      .control-header { align-items: flex-start; flex-direction: column; }
+      .control-channel { text-align: left; }
     }
   </style>
 </head>
@@ -395,6 +530,69 @@
             <button id="stopButton" class="primary" type="button" disabled>停止播放</button>
             <span id="playerState" class="player-state">未播放</span>
           </div>
+
+          <section id="controlPanel" class="control-panel" aria-label="全局通道前端控制">
+            <div class="control-header">
+              <h3>全局通道控制</h3>
+              <span id="controlChannel" class="control-channel">请选择在线通道</span>
+            </div>
+            <fieldset id="controlFieldset" disabled>
+              <div class="control-layout">
+                <div class="control-section">
+                  <h4>云台</h4>
+                  <div class="ptz-pad">
+                    <span></span>
+                    <button type="button" data-ptz-command="up">上</button>
+                    <span></span>
+                    <button type="button" data-ptz-command="left">左</button>
+                    <button type="button" class="stop" data-ptz-command="stop">停</button>
+                    <button type="button" data-ptz-command="right">右</button>
+                    <span></span>
+                    <button type="button" data-ptz-command="down">下</button>
+                    <span></span>
+                    <button type="button" data-ptz-command="zoomin">放大</button>
+                    <button type="button" data-ptz-command="zoomout">缩小</button>
+                  </div>
+                  <div class="control-fields">
+                    <label class="control-field">水平速度<input id="panSpeed" type="number" min="0" max="100" value="50"></label>
+                    <label class="control-field">垂直速度<input id="tiltSpeed" type="number" min="0" max="100" value="50"></label>
+                    <label class="control-field">缩放速度<input id="zoomSpeed" type="number" min="0" max="100" value="50"></label>
+                  </div>
+                </div>
+
+                <div class="control-section">
+                  <h4>镜头与辅助控制</h4>
+                  <div class="control-actions">
+                    <button type="button" data-control="iris" data-command="in">光圈+</button>
+                    <button type="button" data-control="iris" data-command="out">光圈-</button>
+                    <button type="button" data-control="iris" data-command="stop">光圈停</button>
+                    <button type="button" data-control="focus" data-command="near">聚焦近</button>
+                    <button type="button" data-control="focus" data-command="far">聚焦远</button>
+                    <button type="button" data-control="focus" data-command="stop">聚焦停</button>
+                    <button type="button" data-control="wiper" data-command="on">雨刷开</button>
+                    <button type="button" data-control="wiper" data-command="off">雨刷关</button>
+                  </div>
+                  <div class="control-fields">
+                    <label class="control-field">光圈速度<input id="irisSpeed" type="number" min="0" max="100" value="50"></label>
+                    <label class="control-field">聚焦速度<input id="focusSpeed" type="number" min="0" max="100" value="50"></label>
+                  </div>
+
+                  <h4 style="margin-top: 12px">预置位</h4>
+                  <div class="control-actions">
+                    <button id="queryPresetButton" type="button">查询预置位</button>
+                    <button id="callPresetButton" type="button">调用预置位</button>
+                  </div>
+                  <div class="preset-row">
+                    <select id="presetSelect" aria-label="预置位">
+                      <option value="">请先查询预置位</option>
+                    </select>
+                    <input id="presetIdInput" type="number" min="1" max="100" placeholder="编号">
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+            <p class="control-hint">控制接口使用数据库通道 ID，不使用设备国标 ID；速度范围为 0-100。仅 GB28181/JT1078 通道支持控制。</p>
+          </section>
         </aside>
       </div>
 
@@ -417,6 +615,7 @@
       var currentChannelNode = null
       var rtcPlayer = null
       var playRequestSequence = 0
+      var controlDetailRequestSequence = 0
 
       $('#apiBaseText').text(API_BASE)
 
@@ -447,6 +646,79 @@
 
       function setTreeButtons(enabled) {
         $('#refreshButton, #expandButton, #collapseButton').prop('disabled', !enabled)
+      }
+
+      function setControlEnabled(enabled) {
+        $('#controlFieldset').prop('disabled', !enabled)
+      }
+
+      function channelTypeName(dataType) {
+        switch (Number(dataType)) {
+          case 1:
+            return 'GB28181'
+          case 2:
+            return '推流设备'
+          case 3:
+            return '拉流代理'
+          case 200:
+            return 'JT/T 1078'
+          default:
+            return '未知类型'
+        }
+      }
+
+      function isControlSupported(data) {
+        var dataType = Number(data && data.dataType)
+        return dataType === 1 || dataType === 200
+      }
+
+      function updateControlState(node) {
+        if (!node || !isChannel(node.data)) {
+          $('#controlChannel').text('请选择在线通道')
+          setControlEnabled(false)
+          return
+        }
+
+        var channelId = nodeChannelId(node.data)
+        var dataType = Number(node.data.dataType)
+        if (!nodeOnline(node.data)) {
+          $('#controlChannel').text('当前通道：' + channelId + '（离线）')
+          setControlEnabled(false)
+        } else if (!node.data.dataType) {
+          $('#controlChannel').text('当前通道：' + channelId + '（正在读取通道类型）')
+          setControlEnabled(false)
+        } else if (!isControlSupported(node.data)) {
+          $('#controlChannel').text('当前通道：' + channelId + '（' + channelTypeName(dataType) + '不支持云台）')
+          setControlEnabled(false)
+        } else {
+          $('#controlChannel').text('当前通道：' + channelId + '（' + channelTypeName(dataType) + '，在线）')
+          setControlEnabled(channelId !== '')
+        }
+      }
+
+      function loadChannelDetail(node) {
+        if (!node || !isChannel(node.data)) return
+
+        var channelId = nodeChannelId(node.data)
+        var requestId = ++controlDetailRequestSequence
+        updateControlState(node)
+        if (channelId === '') return
+
+        requestJson('/api/common/channel/one', {
+          data: { id: channelId },
+          headers: { 'access-token': token }
+        }).then(function (detail) {
+          if (requestId !== controlDetailRequestSequence || currentChannelNode !== node) return
+          if (!detail) throw new Error('通道详情为空')
+          node.data = $.extend({}, node.data, detail)
+          updateControlState(node)
+          log('通道 ' + channelId + ' 类型：' + channelTypeName(node.data.dataType))
+        }).catch(function (error) {
+          if (requestId !== controlDetailRequestSequence || currentChannelNode !== node) return
+          setControlEnabled(false)
+          $('#controlChannel').text('通道类型读取失败')
+          log('读取通道 ' + channelId + ' 控制能力失败：' + (error.message || error), 'error')
+        })
       }
 
       function formatError(xhr, fallback) {
@@ -504,6 +776,117 @@
           // 后端停止接口返回空响应时不影响本地播放器清理；这里仅记录失败。
           log(formatError(xhr, '停止播放请求失败'), 'error')
         })
+      }
+
+      function controlChannelId() {
+        if (!currentChannelNode || !isChannel(currentChannelNode.data)) {
+          throw new Error('请先选择通道')
+        }
+        var channelId = nodeChannelId(currentChannelNode.data)
+        if (channelId === '') {
+          throw new Error('当前通道缺少数据库 ID')
+        }
+        if (!nodeOnline(currentChannelNode.data)) {
+          throw new Error('当前通道离线，无法控制')
+        }
+        if (!isControlSupported(currentChannelNode.data)) {
+          throw new Error('当前通道为' + channelTypeName(currentChannelNode.data.dataType) + '，不支持云台控制')
+        }
+        return channelId
+      }
+
+      function numberValue(selector, name, min, max) {
+        var value = Number($(selector).val())
+        if (!Number.isFinite(value) || value < min || value > max) {
+          throw new Error(name + '必须是 ' + min + '-' + max + ' 的数字')
+        }
+        return value
+      }
+
+      function requestControl(path, data, description) {
+        log('GET ' + path + '?' + $.param(data))
+        return requestJson(path, {
+          data: data,
+          headers: { 'access-token': token },
+          timeout: 30000
+        }).then(function (result) {
+          log(description + '成功', 'success')
+          return result
+        }).catch(function (error) {
+          var message = error && error.message ? error.message : description + '失败'
+          log(description + '失败：' + message, 'error')
+          throw error
+        })
+      }
+
+      function controlPtz(command) {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/ptz', {
+          channelId: channelId,
+          command: command,
+          panSpeed: numberValue('#panSpeed', '水平速度', 0, 100),
+          tiltSpeed: numberValue('#tiltSpeed', '垂直速度', 0, 100),
+          zoomSpeed: numberValue('#zoomSpeed', '缩放速度', 0, 100)
+        }, '云台 ' + command)
+      }
+
+      function controlLens(type, command) {
+        var channelId = controlChannelId()
+        var speedSelector = type === 'iris' ? '#irisSpeed' : '#focusSpeed'
+        var speedName = type === 'iris' ? '光圈速度' : '聚焦速度'
+        var path = type === 'iris'
+          ? '/api/common/channel/front-end/fi/iris'
+          : '/api/common/channel/front-end/fi/focus'
+        return requestControl(path, {
+          channelId: channelId,
+          command: command,
+          speed: numberValue(speedSelector, speedName, 0, 100)
+        }, (type === 'iris' ? '光圈 ' : '聚焦 ') + command)
+      }
+
+      function controlWiper(command) {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/wiper', {
+          channelId: channelId,
+          command: command
+        }, '雨刷 ' + command)
+      }
+
+      function queryPresets() {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/preset/query', {
+          channelId: channelId
+        }, '预置位查询').then(function (presets) {
+          var $select = $('#presetSelect').empty()
+          if (!Array.isArray(presets) || !presets.length) {
+            $select.append($('<option>', { value: '', text: '设备未返回预置位' }))
+            $('#presetIdInput').val('')
+            return presets
+          }
+          $.each(presets, function (_, preset) {
+            var presetId = preset.presetId === undefined ? '' : preset.presetId
+            var presetName = preset.presetName || ('预置位 ' + presetId)
+            $select.append($('<option>', {
+              value: presetId,
+              text: presetId + ' - ' + presetName
+            }))
+          })
+          $('#presetIdInput').val($select.val() || '')
+          return presets
+        })
+      }
+
+      function callPreset() {
+        var channelId = controlChannelId()
+        var presetId = $('#presetIdInput').val() || $('#presetSelect').val()
+        var numericPresetId = Number(presetId)
+        if (!presetId || !Number.isInteger(numericPresetId) || numericPresetId < 1 || numericPresetId > 100) {
+          throw new Error('预置位编号必须是 1-100 的整数')
+        }
+        return requestControl('/api/common/channel/front-end/preset/call', {
+          channelId: channelId,
+          presetId: numericPresetId
+        }, '调用预置位 ' + presetId)
       }
 
       function login() {
@@ -595,13 +978,19 @@
         }
         currentChannelNode = node || null
         if (node && isChannel(node.data)) {
+          var channelId = nodeChannelId(node.data)
           $('#playerChannelName').text(nodeLabel(node.data))
-          $('#playerChannelId').text('通道 ID：' + nodeChannelId(node.data) + (nodeDeviceId(node.data) ? '｜设备：' + nodeDeviceId(node.data) : ''))
+          $('#playerChannelId').text('通道 ID：' + channelId + (nodeDeviceId(node.data) ? '｜设备：' + nodeDeviceId(node.data) : ''))
           $('#stopButton').prop('disabled', false)
+          updateControlState(node)
+          loadChannelDetail(node)
         } else {
+          ++controlDetailRequestSequence
           $('#playerChannelName').text('未选择通道')
           $('#playerChannelId').text('请选择左侧在线通道开始播放')
           $('#stopButton').prop('disabled', true)
+          $('#controlChannel').text('请选择在线通道')
+          setControlEnabled(false)
         }
       }
 
@@ -1002,10 +1391,46 @@
         setStatus('已收起全部', 'success')
       })
       $('#stopButton').on('click', stopPlayback)
+      $('#controlPanel').on('click', '[data-ptz-command]', function () {
+        var command = $(this).data('ptz-command')
+        try {
+          controlPtz(command).catch(function () {})
+        } catch (error) {
+          log(error.message || '云台控制失败', 'error')
+        }
+      })
+      $('#controlPanel').on('click', '[data-control]', function () {
+        var type = $(this).data('control')
+        var command = $(this).data('command')
+        try {
+          var request = type === 'wiper' ? controlWiper(command) : controlLens(type, command)
+          request.catch(function () {})
+        } catch (error) {
+          log(error.message || '控制请求失败', 'error')
+        }
+      })
+      $('#queryPresetButton').on('click', function () {
+        try {
+          queryPresets().catch(function () {})
+        } catch (error) {
+          log(error.message || '预置位查询失败', 'error')
+        }
+      })
+      $('#callPresetButton').on('click', function () {
+        try {
+          callPreset().catch(function () {})
+        } catch (error) {
+          log(error.message || '预置位调用失败', 'error')
+        }
+      })
+      $('#presetSelect').on('change', function () {
+        $('#presetIdInput').val($(this).val())
+      })
       $(window).on('beforeunload', function () {
         closeRtcPlayer()
       })
 
+      setControlEnabled(false)
       replaceRoot()
       login().then(refreshTree).catch(function () {
         $('#treeRoot').empty().append($('<li>', {

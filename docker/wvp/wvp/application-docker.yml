@@ -123,7 +123,7 @@ user-settings:
     wait-track: false
     record-push-live: ${RecordPushLive:false}
     record-sip: ${RecordSip:false}
-    stream-on-demand: true
+    stream-on-demand: false
     interface-authentication: true
     broadcast-for-platform: TCP-PASSIVE
     push-stream-after-ack: true
