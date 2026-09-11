@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WVP 分组、通道与 WebRTC 播放</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <!-- WVP 前端使用的 WebRTC 客户端，实际脚本来自 Docker Nginx 暴露的前端资源（8080）。 -->
+  <script src="http://192.168.1.200:8080/static/js/ZLMRTCClient.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #1976d2;
+      --primary-light: #e8f2fc;
+      --text: #263238;
+      --muted: #78909c;
+      --border: #e5e7eb;
+      --panel: #ffffff;
+      --background: #f4f6f8;
+      --success: #2e7d32;
+      --danger: #c62828;
+      --warning: #ef6c00;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--background);
+      color: var(--text);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    .page {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .header,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .header {
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toolbar button,
+    .player-toolbar button {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 7px 13px;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .toolbar button:hover:not(:disabled),
+    .player-toolbar button:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .toolbar button.primary,
+    .player-toolbar button.primary {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .toolbar button.primary:hover:not(:disabled),
+    .player-toolbar button.primary:hover:not(:disabled) {
+      background: #1565c0;
+      color: #fff;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      margin-left: auto;
+      color: var(--muted);
+    }
+
+    .status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    .status.success { color: var(--success); }
+    .status.success::before { background: var(--success); }
+    .status.error { color: var(--danger); }
+    .status.error::before { background: var(--danger); }
+    .status.loading { color: var(--warning); }
+    .status.loading::before { background: var(--warning); }
+
+    .info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      padding: 12px 16px;
+      color: var(--muted);
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.35fr);
+      min-height: 560px;
+    }
+
+    .tree-panel {
+      min-width: 0;
+      padding: 12px 16px 22px;
+      overflow: auto;
+      border-right: 1px solid var(--border);
+    }
+
+    .player-panel {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      padding: 16px;
+      background: #f8fafc;
+    }
+
+    .player-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .player-title h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .player-title p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .player-stage {
+      position: relative;
+      display: flex;
+      min-height: 300px;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #050505;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    #webrtcVideo {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+      object-fit: contain;
+      background: #050505;
+    }
+
+    .player-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #94a3b8;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .player-placeholder.error { color: #fca5a5; }
+
+    .player-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .player-state {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tree,
+    .tree ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .tree ul {
+      margin-left: 22px;
+      border-left: 1px dashed #cbd5e1;
+    }
+
+    .tree-node {
+      min-width: max-content;
+    }
+
+    .tree-row {
+      display: flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      cursor: default;
+    }
+
+    .tree-row:hover { background: #f8fafc; }
+    .tree-row.channel-row { cursor: pointer; }
+    .tree-row.channel-row:hover { background: var(--primary-light); }
+    .tree-row.selected { background: #dbeafe; box-shadow: inset 3px 0 0 var(--primary); }
+
+    .tree-toggle {
+      width: 24px;
+      height: 24px;
+      margin-right: 4px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 24px;
+    }
+
+    .tree-toggle:hover { background: #e2e8f0; }
+    .tree-toggle.empty { visibility: hidden; }
+    .tree-toggle.loading { font-size: 12px; }
+
+    .node-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 23px;
+      margin-right: 7px;
+      font-size: 17px;
+    }
+
+    .node-icon.group { color: var(--primary); }
+    .node-icon.channel.online { color: #16a34a; }
+    .node-icon.channel.offline { color: #94a3b8; }
+
+    .node-name { color: #1e293b; font-weight: 500; }
+    .node-meta { margin-left: 10px; color: #94a3b8; font-size: 12px; }
+
+    .node-status {
+      margin-left: 8px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .node-status.online { background: #dcfce7; color: #15803d; }
+    .node-status.offline { background: #f1f5f9; color: #64748b; }
+
+    .loading-row,
+    .empty-row,
+    .error-row {
+      padding: 12px 10px;
+      color: var(--muted);
+    }
+
+    .error-row { color: var(--danger); }
+
+    .log {
+      max-height: 150px;
+      overflow: auto;
+      margin: 0;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: #0f172a;
+      color: #cbd5e1;
+      font: 12px/1.6 Consolas, Monaco, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    @media (max-width: 860px) {
+      .workspace { grid-template-columns: 1fr; }
+      .tree-panel { max-height: 480px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .player-panel { min-height: 480px; }
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 12px; }
+      .header { padding: 16px; }
+      h1 { font-size: 20px; }
+      .status { width: 100%; margin-left: 0; }
+      .player-state { width: 100%; margin-left: 0; }
+      .tree-panel { padding-left: 8px; padding-right: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <h1>WVP 分组、通道与 WebRTC 播放</h1>
+      <p class="subtitle">点击树中的在线通道，调用 WVP 18978 API 建立单路 WebRTC 实时预览。</p>
+    </header>
+
+    <section class="panel">
+      <div class="toolbar">
+        <button id="refreshButton" class="primary" type="button" disabled>刷新树</button>
+        <button id="expandButton" type="button" disabled>展开全部</button>
+        <button id="collapseButton" type="button" disabled>收起全部</button>
+        <span id="status" class="status">准备登录</span>
+      </div>
+      <div class="info">
+        <span>API：<code id="apiBaseText"></code></span>
+        <span>账号：<code>admin</code></span>
+        <span>树接口：<code>/api/group/tree/list</code></span>
+        <span>播放接口：<code>/api/common/channel/play?channelId=...</code></span>
+      </div>
+
+      <div class="workspace">
+        <div class="tree-panel">
+          <ul id="treeRoot" class="tree" aria-label="分组和通道树"></ul>
+        </div>
+
+        <aside class="player-panel" aria-label="WebRTC播放器">
+          <div class="player-title">
+            <div>
+              <h2 id="playerChannelName">未选择通道</h2>
+              <p id="playerChannelId">请选择左侧在线通道开始播放</p>
+            </div>
+          </div>
+          <div class="player-stage">
+            <video id="webrtcVideo" autoplay playsinline controls></video>
+            <div id="playerPlaceholder" class="player-placeholder">WebRTC 播放画面将在这里显示</div>
+          </div>
+          <div class="player-toolbar">
+            <button id="stopButton" class="primary" type="button" disabled>停止播放</button>
+            <span id="playerState" class="player-state">未播放</span>
+          </div>
+        </aside>
+      </div>
+
+      <pre id="log" class="log" aria-label="请求日志"></pre>
+    </section>
+  </main>
+
+  <script>
+    (function ($) {
+      'use strict'
+
+      // 测试页面固定使用当前 Docker WVP 实例；生产环境请勿在前端硬编码账号密码。
+      var API_BASE = 'http://192.168.1.200:8080'
+      var USERNAME = 'admin'
+      var PASSWORD = 'ABCabc123@'
+      var token = ''
+      var rootNode = null
+      var nodeSequence = 0
+      var currentChannelId = null
+      var currentChannelNode = null
+      var rtcPlayer = null
+      var playRequestSequence = 0
+
+      $('#apiBaseText').text(API_BASE)
+
+      function log(message, type) {
+        var now = new Date().toLocaleTimeString()
+        var prefix = type === 'error' ? '[错误]' : type === 'success' ? '[成功]' : '[信息]'
+        var current = $('#log').text()
+        $('#log').text(current + (current ? '\n' : '') + now + ' ' + prefix + ' ' + message)
+        var logElement = document.getElementById('log')
+        logElement.scrollTop = logElement.scrollHeight
+      }
+
+      function setStatus(message, type) {
+        $('#status').removeClass('success error loading').addClass(type || '').text(message)
+      }
+
+      function setPlayerState(message, type) {
+        $('#playerState').removeClass('success error loading').addClass(type || '').text(message)
+      }
+
+      function setPlayerPlaceholder(message, isError) {
+        $('#playerPlaceholder').text(message).toggleClass('error', Boolean(isError)).show()
+      }
+
+      function hidePlayerPlaceholder() {
+        $('#playerPlaceholder').hide()
+      }
+
+      function setTreeButtons(enabled) {
+        $('#refreshButton, #expandButton, #collapseButton').prop('disabled', !enabled)
+      }
+
+      function formatError(xhr, fallback) {
+        var response = xhr && xhr.responseJSON
+        if (response && response.msg) {
+          return response.msg + '（HTTP ' + xhr.status + '）'
+        }
+        if (xhr && xhr.status) {
+          return fallback + '（HTTP ' + xhr.status + '）'
+        }
+        return fallback
+      }
+
+      function requestJson(path, options) {
+        options = options || {}
+        var requestOptions = {
+          url: API_BASE + path,
+          method: options.method || 'GET',
+          dataType: 'json',
+          timeout: options.timeout || 15000,
+          headers: options.headers || {}
+        }
+        if (options.data) {
+          requestOptions.data = options.data
+        }
+        return $.ajax(requestOptions).then(function (response) {
+          if (!response || typeof response.code === 'undefined') {
+            throw new Error('API 返回格式不正确')
+          }
+          if (response.code !== 0) {
+            throw new Error(response.msg || ('API 返回错误码：' + response.code))
+          }
+          return response.data
+        }, function (xhr) {
+          throw new Error(formatError(xhr, 'API 请求失败'))
+        })
+      }
+
+      function requestStop(channelId) {
+        if (channelId === null || channelId === undefined || channelId === '') {
+          return $.Deferred().resolve().promise()
+        }
+        var path = '/api/common/channel/play/stop?channelId=' + encodeURIComponent(channelId)
+        log('GET ' + path)
+        return $.ajax({
+          url: API_BASE + '/api/common/channel/play/stop',
+          method: 'GET',
+          data: { channelId: channelId },
+          dataType: 'text',
+          timeout: 10000,
+          headers: { 'access-token': token }
+        }).then(function () {
+          log('已请求停止通道 ' + channelId, 'success')
+        }, function (xhr) {
+          // 后端停止接口返回空响应时不影响本地播放器清理；这里仅记录失败。
+          log(formatError(xhr, '停止播放请求失败'), 'error')
+        })
+      }
+
+      function login() {
+        setStatus('正在登录…', 'loading')
+        log('GET /api/user/login')
+        var passwordMd5 = CryptoJS.MD5(PASSWORD).toString()
+        return requestJson('/api/user/login', {
+          data: {
+            username: USERNAME,
+            password: passwordMd5
+          }
+        }).then(function (data) {
+          if (!data || !data.accessToken) {
+            throw new Error('登录成功但未返回 accessToken')
+          }
+          token = data.accessToken
+          setStatus('登录成功', 'success')
+          setTreeButtons(true)
+          log('登录成功，已获取 access-token', 'success')
+          return token
+        }).catch(function (error) {
+          token = ''
+          setTreeButtons(false)
+          setStatus('登录失败', 'error')
+          var message = error && error.message ? error.message : '登录请求失败，请检查 API 地址、账号或密码'
+          log(message, 'error')
+          throw error
+        })
+      }
+
+      function createVirtualRoot() {
+        return {
+          key: 'root',
+          data: {
+            id: null,
+            treeId: '',
+            deviceId: '',
+            name: '根资源组',
+            type: 0,
+            leaf: false,
+            isLeaf: false
+          },
+          isRoot: true,
+          loaded: false,
+          loading: false,
+          expanded: false,
+          children: []
+        }
+      }
+
+      function isChannel(data) {
+        return Number(data.type) === 1
+      }
+
+      function isLeaf(data) {
+        return isChannel(data) || data.leaf === true || data.isLeaf === true
+      }
+
+      function nodeLabel(data) {
+        return data.name || data.gbName || data.deviceId || data.gbDeviceId || '未命名节点'
+      }
+
+      function nodeDeviceId(data) {
+        return data.deviceId || data.gbDeviceId || ''
+      }
+
+      function nodeOnline(data) {
+        return data.status === 'ON' || data.gbStatus === 'ON'
+      }
+
+      function nodeChannelId(data) {
+        // GroupTree 的通道节点由 wvp_device_channel.id 映射而来；id 是播放接口所需的数据库 ID。
+        return data.id !== undefined && data.id !== null ? data.id : ''
+      }
+
+      function apiPathFor(node) {
+        var params = { hasChannel: node.isRoot ? 'false' : 'true' }
+        if (!node.isRoot && node.data.id !== null && node.data.id !== undefined) {
+          params.parent = node.data.id
+        }
+        var query = $.param(params)
+        return '/api/group/tree/list?' + query
+      }
+
+      function setSelectedNode(node) {
+        $('.tree-row.selected').removeClass('selected')
+        if (node && node.$row) {
+          node.$row.addClass('selected')
+        }
+        currentChannelNode = node || null
+        if (node && isChannel(node.data)) {
+          $('#playerChannelName').text(nodeLabel(node.data))
+          $('#playerChannelId').text('通道 ID：' + nodeChannelId(node.data) + (nodeDeviceId(node.data) ? '｜设备：' + nodeDeviceId(node.data) : ''))
+          $('#stopButton').prop('disabled', false)
+        } else {
+          $('#playerChannelName').text('未选择通道')
+          $('#playerChannelId').text('请选择左侧在线通道开始播放')
+          $('#stopButton').prop('disabled', true)
+        }
+      }
+
+      function renderNode(node) {
+        var data = node.data
+        var channel = isChannel(data)
+        var leaf = isLeaf(data)
+        var online = nodeOnline(data)
+        var $li = $('<li>', {
+          'class': 'tree-node',
+          'data-node-key': node.key
+        })
+        var $row = $('<div>', {
+          'class': 'tree-row' + (channel ? ' channel-row' : ''),
+          role: channel ? 'button' : undefined,
+          tabindex: channel ? '0' : undefined,
+          title: channel ? (online ? '点击播放' : '通道离线，无法播放') : ''
+        })
+        var $toggle = $('<button>', {
+          'class': 'tree-toggle' + (leaf ? ' empty' : ''),
+          type: 'button',
+          'aria-label': leaf ? '叶子节点' : '展开或收起'
+        })
+        if (!leaf) {
+          $toggle.text(node.expanded ? '▾' : '▸')
+          $toggle.on('click', function (event) {
+            event.stopPropagation()
+            toggleNode(node)
+          })
+        }
+
+        var $icon = $('<span>', {
+          'class': 'node-icon ' + (channel ? 'channel ' + (online ? 'online' : 'offline') : 'group'),
+          text: channel ? '▣' : '▰'
+        })
+        var $name = $('<span>', { 'class': 'node-name', text: nodeLabel(data) })
+        $row.append($toggle, $icon, $name)
+
+        var deviceId = nodeDeviceId(data)
+        if (deviceId) {
+          $row.append($('<span>', { 'class': 'node-meta', text: deviceId }))
+        }
+
+        if (channel) {
+          $row.append($('<span>', {
+            'class': 'node-status ' + (online ? 'online' : 'offline'),
+            text: online ? '在线' : '离线'
+          }))
+          $row.on('click', function () {
+            playChannel(node)
+          })
+          $row.on('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              playChannel(node)
+            }
+          })
+        }
+
+        $li.append($row)
+        node.$row = $row
+        if (!leaf) {
+          var $children = $('<ul>', { 'class': 'tree-children' })
+          if (!node.expanded) {
+            $children.hide()
+          }
+          $li.append($children)
+          node.$children = $children
+          node.$toggle = $toggle
+          if (node.loaded) {
+            renderChildren(node)
+          }
+        }
+        node.$element = $li
+        return $li
+      }
+
+      function renderChildren(node) {
+        if (!node.$children) return
+        node.$children.empty()
+        if (!node.children.length) {
+          node.$children.append($('<li>', {
+            'class': 'empty-row',
+            text: node.isRoot ? '根资源组下暂无分组' : '该节点下暂无子分组或通道'
+          }))
+          return
+        }
+        $.each(node.children, function (_, child) {
+          node.$children.append(renderNode(child))
+        })
+      }
+
+      function replaceRoot() {
+        rootNode = createVirtualRoot()
+        $('#treeRoot').empty().append(renderNode(rootNode))
+      }
+
+      function loadChildren(node) {
+        if (node.loading) return $.Deferred().reject().promise()
+        node.loading = true
+        node.expanded = true
+        if (node.$toggle) {
+          node.$toggle.removeClass('empty').addClass('loading').text('…')
+        }
+        if (node.$children) {
+          node.$children.show().empty().append($('<li>', {
+            'class': 'loading-row',
+            text: '正在加载…'
+          }))
+        }
+
+        var path = apiPathFor(node)
+        log('GET ' + path)
+        return requestJson(path, {
+          headers: { 'access-token': token }
+        }).then(function (data) {
+          if (!Array.isArray(data)) {
+            throw new Error('树接口返回的数据不是数组')
+          }
+          node.children = data.map(function (item) {
+            nodeSequence += 1
+            return {
+              key: (item.treeId || item.deviceId || 'node') + '-' + nodeSequence,
+              data: item,
+              isRoot: false,
+              loaded: false,
+              loading: false,
+              expanded: false,
+              children: []
+            }
+          })
+          node.loaded = true
+          renderChildren(node)
+          log('返回 ' + data.length + ' 个节点', 'success')
+          return data
+        }).catch(function (error) {
+          var message = error && error.message ? error.message : '树节点请求失败'
+          if (node.$children) {
+            node.$children.empty().append($('<li>', {
+              'class': 'error-row',
+              text: message
+            }))
+          }
+          log(message, 'error')
+          return $.Deferred().reject(error).promise()
+        }).always(function () {
+          node.loading = false
+          if (node.$toggle) {
+            node.$toggle.removeClass('loading').text(node.expanded ? '▾' : '▸')
+          }
+        })
+      }
+
+      function toggleNode(node) {
+        if (isLeaf(node.data)) return
+        if (node.expanded) {
+          node.expanded = false
+          if (node.$children) node.$children.slideUp(100)
+          if (node.$toggle) node.$toggle.text('▸')
+          return
+        }
+        node.expanded = true
+        if (node.$children) node.$children.slideDown(100)
+        if (node.loaded) {
+          if (node.$toggle) node.$toggle.text('▾')
+          return
+        }
+        loadChildren(node).catch(function () {
+          node.expanded = false
+          if (node.$children) node.$children.hide()
+          if (node.$toggle) node.$toggle.text('▸')
+        })
+      }
+
+      function closeRtcPlayer() {
+        if (rtcPlayer) {
+          try {
+            rtcPlayer.close()
+          } catch (error) {
+            console.warn('关闭 WebRTC 播放器失败', error)
+          }
+          rtcPlayer = null
+        }
+        var video = document.getElementById('webrtcVideo')
+        video.pause()
+        video.srcObject = null
+      }
+
+      function forceWebRtcPort(url) {
+        if (!url) return ''
+        // 当前 Docker Nginx 对外暴露 WebRTC HTTP 入口为 8080；后端可能返回 80，这里先在 Demo 页面直接替换验证。
+        try {
+          var parsed = new URL(url)
+          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            parsed.port = '8080'
+            return parsed.toString()
+          }
+        } catch (error) {
+          console.warn('WebRTC URL 解析失败，使用字符串替换端口', error)
+        }
+        return String(url).replace(/:(80)(?=\/)/, ':8080')
+      }
+
+      function getRtcUrl(streamContent) {
+        if (!streamContent) return ''
+        var field = window.location.protocol === 'https:' ? 'rtcs' : 'rtc'
+        var fallback = field === 'rtcs' ? 'rtc' : 'rtcs'
+        var value = streamContent[field] || streamContent[fallback]
+        if (value && typeof value === 'object') {
+          return forceWebRtcPort(value.url || '')
+        }
+        return forceWebRtcPort(value || '')
+      }
+
+      function setRtcEventHandlers(player, requestId, channelId) {
+        var events = window.ZLMRTCClient && window.ZLMRTCClient.Events
+        if (!events || !player || !player.on) return
+
+        player.on(events.WEBRTC_ICE_CANDIDATE_ERROR, function (event) {
+          if (requestId !== playRequestSequence) return
+          console.error('ICE 协商出错', event)
+          setPlayerState('ICE 协商失败', 'error')
+          setPlayerPlaceholder('WebRTC ICE 协商失败，请检查媒体服务器地址、端口和网络连通性。', true)
+          log('通道 ' + channelId + ' ICE 协商失败', 'error')
+        })
+
+        player.on(events.WEBRTC_ON_REMOTE_STREAMS, function (event) {
+          if (requestId !== playRequestSequence) return
+          console.log('播放成功', event && event.streams)
+          hidePlayerPlaceholder()
+          setPlayerState('播放中', 'success')
+          log('通道 ' + channelId + ' WebRTC 播放成功', 'success')
+        })
+
+        player.on(events.WEBRTC_OFFER_ANWSER_EXCHANGE_FAILED, function (event) {
+          if (requestId !== playRequestSequence) return
+          var message = event && (event.msg || event.message) ? (event.msg || event.message) : 'Offer/Answer 协商失败'
+          console.error('Offer/Answer 交换失败', event)
+          setPlayerState('协商失败', 'error')
+          setPlayerPlaceholder('WebRTC 协商失败：' + message, true)
+          log('通道 ' + channelId + ' ' + message, 'error')
+        })
+
+        player.on(events.WEBRTC_ON_LOCAL_STREAM, function (event) {
+          if (requestId !== playRequestSequence) return
+          console.log('获取到了本地流', event)
+        })
+      }
+
+      function startRtcPlayback(node, requestId) {
+        var data = node.data
+        var channelId = nodeChannelId(data)
+        if (channelId === '') {
+          throw new Error('通道缺少数据库 ID，无法调用播放接口')
+        }
+        if (!window.ZLMRTCClient || !window.ZLMRTCClient.Endpoint) {
+          throw new Error('未加载 ZLMRTCClient.js，请确认 8080/static/js/ZLMRTCClient.js 可访问')
+        }
+
+        setPlayerState('正在建立 WebRTC…', 'loading')
+        setPlayerPlaceholder('正在请求媒体流并建立 WebRTC 连接…')
+        log('使用通道 ID ' + channelId + ' 调用 WVP 播放接口')
+        return requestJson('/api/common/channel/play', {
+          data: { channelId: channelId },
+          headers: { 'access-token': token },
+          timeout: 60000
+        }).then(function (streamContent) {
+          if (requestId !== playRequestSequence) {
+            requestStop(channelId)
+            return null
+          }
+          var rtcUrl = getRtcUrl(streamContent)
+          if (!rtcUrl) {
+            throw new Error('播放接口未返回 rtc/rtcs 地址')
+          }
+
+          currentChannelId = channelId
+          $('#playerChannelId').text('通道 ID：' + channelId + '｜WebRTC：' + rtcUrl)
+          log('收到 WebRTC 地址：' + rtcUrl)
+          var video = document.getElementById('webrtcVideo')
+          try {
+            rtcPlayer = new window.ZLMRTCClient.Endpoint({
+              element: video,
+              debug: true,
+              zlmsdpUrl: rtcUrl,
+              simulecast: false,
+              useCamera: false,
+              audioEnable: true,
+              videoEnable: true,
+              recvOnly: true,
+              usedatachannel: false
+            })
+          } catch (error) {
+            throw new Error('创建 WebRTC 播放器失败：' + (error.message || error))
+          }
+          setRtcEventHandlers(rtcPlayer, requestId, channelId)
+          return streamContent
+        }).catch(function (error) {
+          if (requestId !== playRequestSequence) return null
+          closeRtcPlayer()
+          currentChannelId = null
+          var message = error && error.message ? error.message : 'WebRTC 播放失败'
+          setPlayerState('播放失败', 'error')
+          setPlayerPlaceholder(message, true)
+          log(message, 'error')
+          throw error
+        })
+      }
+
+      function playChannel(node) {
+        var data = node.data
+        var channelId = nodeChannelId(data)
+        setSelectedNode(node)
+        var requestId = ++playRequestSequence
+        var oldChannelId = currentChannelId
+        closeRtcPlayer()
+        currentChannelId = null
+        setPlayerState('准备播放', 'loading')
+
+        if (!nodeOnline(data)) {
+          setPlayerState('通道离线', 'error')
+          setPlayerPlaceholder('当前通道离线，未发起播放请求。', true)
+          log('通道 ' + (channelId || nodeLabel(data)) + ' 当前离线，跳过播放', 'error')
+          return
+        }
+
+        var stopPromise = oldChannelId ? requestStop(oldChannelId) : $.Deferred().resolve().promise()
+        stopPromise.always(function () {
+          if (requestId !== playRequestSequence) return
+          startRtcPlayback(node, requestId).catch(function () {})
+        })
+      }
+
+      function stopPlayback() {
+        ++playRequestSequence
+        var oldChannelId = currentChannelId
+        currentChannelId = null
+        closeRtcPlayer()
+        setPlayerState('未播放')
+        setPlayerPlaceholder('WebRTC 播放画面将在这里显示')
+        if (oldChannelId) {
+          requestStop(oldChannelId)
+        }
+        log('已停止本地 WebRTC 播放器', 'success')
+      }
+
+      function refreshTree() {
+        if (!token) {
+          setStatus('未登录', 'error')
+          return
+        }
+        stopPlayback()
+        setSelectedNode(null)
+        replaceRoot()
+        setStatus('正在加载树…', 'loading')
+        loadChildren(rootNode).then(function () {
+          setStatus('树加载完成', 'success')
+        }).catch(function () {
+          setStatus('树加载失败', 'error')
+        })
+      }
+
+      function expandAll(node) {
+        if (isLeaf(node.data)) return $.Deferred().resolve().promise()
+        node.expanded = true
+        if (node.$children) node.$children.show()
+        return (node.loaded ? $.Deferred().resolve().promise() : loadChildren(node)).then(function () {
+          var tasks = []
+          $.each(node.children, function (_, child) {
+            if (!isLeaf(child.data)) tasks.push(expandAll(child))
+          })
+          return $.when.apply($, tasks)
+        })
+      }
+
+      function collapseAll(node) {
+        if (node.$children) node.$children.hide()
+        if (node.$toggle && !isLeaf(node.data)) node.$toggle.text('▸')
+        node.expanded = false
+        $.each(node.children, function (_, child) {
+          collapseAll(child)
+        })
+      }
+
+      $('#refreshButton').on('click', refreshTree)
+      $('#expandButton').on('click', function () {
+        if (!rootNode) return
+        setStatus('正在展开全部…', 'loading')
+        expandAll(rootNode).then(function () {
+          setStatus('已展开全部', 'success')
+        }).catch(function () {
+          setStatus('展开全部时有节点加载失败', 'error')
+        })
+      })
+      $('#collapseButton').on('click', function () {
+        if (!rootNode) return
+        collapseAll(rootNode)
+        setStatus('已收起全部', 'success')
+      })
+      $('#stopButton').on('click', stopPlayback)
+      $(window).on('beforeunload', function () {
+        closeRtcPlayer()
+      })
+
+      replaceRoot()
+      login().then(refreshTree).catch(function () {
+        $('#treeRoot').empty().append($('<li>', {
+          'class': 'error-row',
+          text: '自动登录失败，请检查浏览器控制台、API 地址和账号配置。'
+        }))
+      })
+    })(jQuery)
+  </script>
+</body>
+</html>
