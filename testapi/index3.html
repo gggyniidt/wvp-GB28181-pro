@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WVP 通道播放与云台控制</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <!-- Jessibuca 播放器（拷贝自 web/public/static/js/jessibuca），必须与本页同源，Worker/wasm 才能加载。 -->
+  <script src="static/js/jessibuca/jessibuca.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #409EFF;
+      --primary-dark: #337ecc;
+      --primary-light: #ecf5ff;
+      --text: #303133;
+      --muted: #909399;
+      --border: #dcdfe6;
+      --panel: #ffffff;
+      --background: #f4f6f8;
+      --success: #67c23a;
+      --danger: #f56c6c;
+      --warning: #e6a23c;
+      --tree-width: 300px;
+      --ctrl-width: 280px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--background);
+      color: var(--text);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    /* ===== 顶栏 ===== */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .topbar h1 { margin: 0 16px 0 0; font-size: 16px; font-weight: 600; white-space: nowrap; }
+    .topbar button, .player-toolbar button, .ctrl-toggle {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 12px;
+      background: #fff;
+      color: #606266;
+      cursor: pointer;
+      font-size: 13px;
+      transition: 0.15s ease;
+    }
+    .topbar button:hover:not(:disabled), .player-toolbar button:hover:not(:disabled), .ctrl-toggle:hover {
+      border-color: var(--primary); color: var(--primary); background: var(--primary-light);
+    }
+    button.primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    button.primary:hover:not(:disabled) { background: var(--primary-dark) !important; color: #fff !important; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .status { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--muted); font-size: 13px; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #c0c4cc; }
+    .status.success { color: var(--success); } .status.success::before { background: var(--success); }
+    .status.error { color: var(--danger); } .status.error::before { background: var(--danger); }
+    .status.loading { color: var(--warning); } .status.loading::before { background: var(--warning); }
+    .api-text { color: var(--muted); font-size: 12px; }
+    .api-text code { padding: 1px 5px; border-radius: 3px; background: #f1f5f9; }
+
+    /* ===== 三栏工作区 ===== */
+    .workspace {
+      position: fixed;
+      top: 48px; left: 0; right: 0; bottom: 0;
+      display: flex;
+    }
+    .tree-panel {
+      width: var(--tree-width);
+      flex: none;
+      overflow: auto;
+      padding: 10px 12px 20px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+    }
+    .player-panel {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      background: #1e1e1e;
+    }
+    .ctrl-panel {
+      width: var(--ctrl-width);
+      flex: none;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      transition: width 0.2s ease;
+      overflow: hidden;
+    }
+    .ctrl-panel.collapsed { width: 0; border-left: 0; }
+    .ctrl-inner { width: calc(var(--ctrl-width) - 1px); display: flex; flex-direction: column; height: 100%; }
+
+    /* 收起/展开按钮 */
+    .ctrl-toggle {
+      position: fixed;
+      top: 60px;
+      right: var(--ctrl-width);
+      z-index: 11;
+      width: 26px; height: 60px;
+      padding: 0;
+      border-radius: 6px 0 0 6px;
+      border-right: 0;
+      font-size: 14px;
+      transition: right 0.2s ease;
+    }
+    .ctrl-toggle.collapsed { right: 0; }
+
+    /* ===== 播放器 ===== */
+    .player-title { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; color: #e5e7eb; }
+    .player-title h2 { margin: 0; font-size: 16px; font-weight: 600; }
+    .player-title p { margin: 0; color: #9ca3af; font-size: 12px; word-break: break-all; }
+    .player-stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 6px;
+      background: #000;
+    }
+    #jessibucaContainer { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
+    .player-placeholder {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; color: #94a3b8; text-align: center; pointer-events: none;
+    }
+    .player-placeholder.error { color: #fca5a5; }
+    .drag-layer { position: absolute; inset: 0; cursor: crosshair; display: none; z-index: 5; }
+    .drag-layer.active { display: block; }
+    .drag-rect { position: absolute; border: 2px dashed var(--primary); background: rgba(64,158,255,0.15); pointer-events: none; }
+    .drag-tip { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); padding: 4px 10px; border-radius: 4px; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; pointer-events: none; }
+    .player-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .player-state { margin-left: auto; color: #9ca3af; font-size: 13px; }
+    .player-state.success { color: var(--success); } .player-state.error { color: var(--danger); } .player-state.loading { color: var(--warning); }
+
+    /* ===== 控制面板（移植自 channelPtzPanel / ptzControls） ===== */
+    .ctrl-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .ctrl-header h3 { margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; }
+    .ctrl-channel { color: var(--muted); font-size: 12px; text-align: right; word-break: break-all; }
+    .ctrl-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 8px; }
+    .ctrl-body > * { max-width: 100%; }
+    fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+    fieldset:disabled { opacity: 0.45; pointer-events: none; }
+
+    .ptz-section-inner { display: flex; flex-direction: column; }
+    .ptz-top { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .ptz-dpad { position: relative; width: 170px; height: 170px; flex: none; margin: 0 auto; }
+    .dpad-ring {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 130px; height: 130px; border-radius: 50%; background: #f5f7fa; pointer-events: none;
+    }
+    .dpad-btn {
+      position: absolute; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; background: transparent; border: none; outline: none; padding: 0;
+      user-select: none; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .card { width: 46px; height: 46px; font-size: 18px; color: #303133; }
+    .card:hover { background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(64,158,255,0.4); transform: scale(1.1); }
+    .card:active, .card.pressed { background: var(--primary-dark); color: #fff; transform: scale(0.92); }
+    .card-up { top: 14px; left: 62px; }
+    .card-right { top: 62px; left: 110px; }
+    .card-down { top: 110px; left: 62px; }
+    .card-left { top: 62px; left: 14px; }
+    .diag { width: 36px; height: 36px; font-size: 14px; color: #a8abb2; }
+    .diag:hover { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(64,158,255,0.35); transform: scale(1.1); }
+    .diag:active, .diag.pressed { background: var(--primary-dark); color: #fff; transform: scale(0.9); }
+    .diag-upright { top: 36px; left: 104px; }
+    .diag-downright { top: 104px; left: 104px; }
+    .diag-downleft { top: 104px; left: 30px; }
+    .diag-upleft { top: 36px; left: 30px; }
+    .diag span { display: inline-block; }
+    .dpad-center {
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 40px; height: 40px; font-size: 20px; color: var(--muted); line-height: 1;
+      background: linear-gradient(135deg, #eef0f4, #e0e3e8);
+    }
+    .dpad-center:hover { background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(64,158,255,0.4); transform: translate(-50%, -50%) scale(1.1); }
+    .dpad-center:active { background: var(--primary-dark); transform: translate(-50%, -50%) scale(0.92); }
+
+    .ptz-func-col { width: 100%; display: flex; flex-direction: column; min-width: 0; }
+    .ptz-func-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .ptz-func-row { display: contents; }
+    .ptz-func-btn {
+      flex: 1; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4px;
+      height: 36px; border: 1px solid var(--border); border-radius: 4px;
+      cursor: pointer; background: #fff; user-select: none; font-size: 12px; white-space: nowrap;
+    }
+    .ptz-func-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .ptz-func-btn:active, .ptz-func-btn.pressed { background: var(--primary-dark); color: #fff; }
+    .ptz-func-btn.active-mode { background: var(--warning); color: #fff; border-color: var(--warning); }
+    .ptz-func-btn i { font-style: normal; font-size: 14px; }
+
+    .ptz-bottom { margin-top: 14px; }
+    .slider-with-controls { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .slider-label { font-size: 13px; color: #606266; white-space: nowrap; }
+    .slider-btn { border: 0; background: transparent; cursor: pointer; font-weight: bold; color: #1a1a1a; font-size: 16px; padding: 0 2px; flex: none; }
+    .slider-with-controls input[type=range] { flex: 1; min-width: 0; width: 0; accent-color: var(--primary); }
+    .slider-value { min-width: 24px; flex: none; text-align: center; font-size: 13px; color: #606266; }
+
+    .ctrl-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .ctrl-section h4 { margin: 0 0 8px; font-size: 13px; color: #606266; }
+    .ctrl-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ctrl-actions button {
+      min-height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 4px;
+      background: #fff; color: #606266; cursor: pointer; font-size: 12px;
+    }
+    .ctrl-actions button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .preset-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 24px; }
+    .preset-tag {
+      padding: 2px 8px; border-radius: 3px; font-size: 12px; cursor: pointer;
+      background: var(--primary-light); color: var(--primary); border: 1px solid #d9ecff;
+    }
+    .preset-tag:hover { background: var(--primary); color: #fff; }
+    .preset-empty { color: var(--muted); font-size: 12px; }
+    .preset-row { display: flex; gap: 6px; margin-top: 8px; min-width: 0; }
+    .preset-row input { flex: 1; min-width: 0; width: 0; min-height: 30px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; }
+    .ctrl-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; word-break: break-all; }
+
+    /* ===== 日志 ===== */
+    .log {
+      flex: none;
+      max-height: 120px;
+      overflow: auto;
+      margin: 0;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      background: #0f172a;
+      color: #cbd5e1;
+      font: 11px/1.6 Consolas, Monaco, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ===== 树 ===== */
+    .tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+    .tree ul { margin-left: 18px; border-left: 1px dashed #cbd5e1; }
+    .tree-node { min-width: max-content; }
+    .tree-row { display: flex; align-items: center; min-height: 34px; padding: 4px 6px; border-radius: 4px; white-space: nowrap; cursor: default; }
+    .tree-row:hover { background: #f5f7fa; }
+    .tree-row.channel-row { cursor: pointer; }
+    .tree-row.channel-row:hover { background: var(--primary-light); }
+    .tree-row.selected { background: #dbeafe; box-shadow: inset 3px 0 0 var(--primary); }
+    .tree-toggle { width: 22px; height: 22px; margin-right: 2px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #64748b; cursor: pointer; font-size: 15px; line-height: 22px; }
+    .tree-toggle:hover { background: #e2e8f0; }
+    .tree-toggle.empty { visibility: hidden; }
+    .tree-toggle.loading { font-size: 12px; }
+    .node-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; margin-right: 5px; font-size: 15px; }
+    .node-icon.group { color: var(--primary); }
+    .node-icon.channel.online { color: #16a34a; }
+    .node-icon.channel.offline { color: #94a3b8; }
+    .node-name { color: #1e293b; font-weight: 500; }
+    .node-meta { margin-left: 8px; color: #94a3b8; font-size: 11px; }
+    .node-status { margin-left: 6px; padding: 0 6px; border-radius: 10px; font-size: 11px; }
+    .node-status.online { background: #dcfce7; color: #15803d; }
+    .node-status.offline { background: #f1f5f9; color: #64748b; }
+    .loading-row, .empty-row, .error-row { padding: 10px 8px; color: var(--muted); font-size: 12px; }
+    .error-row { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>WVP 通道播放与云台控制</h1>
+    <button id="refreshButton" class="primary" type="button" disabled>刷新树</button>
+    <button id="expandButton" type="button" disabled>展开全部</button>
+    <button id="collapseButton" type="button" disabled>收起全部</button>
+    <span class="api-text">API：<code id="apiBaseText"></code>　播放：<code>/api/common/channel/play</code>　控制：<code>/api/common/channel/front-end/*</code></span>
+    <span id="status" class="status">准备登录</span>
+  </header>
+
+  <div class="workspace">
+    <!-- 左：列表 -->
+    <div class="tree-panel">
+      <ul id="treeRoot" class="tree" aria-label="分组和通道树"></ul>
+    </div>
+
+    <!-- 中：播放器 -->
+    <section class="player-panel" aria-label="Jessibuca播放器">
+      <div class="player-title">
+        <div>
+          <h2 id="playerChannelName">未选择通道</h2>
+          <p id="playerChannelId">请选择左侧在线通道开始播放</p>
+        </div>
+      </div>
+      <div class="player-stage" id="playerStage">
+        <div id="jessibucaContainer"></div>
+        <div id="playerPlaceholder" class="player-placeholder">ws-flv 播放画面将在这里显示</div>
+        <div id="dragLayer" class="drag-layer">
+          <div id="dragTip" class="drag-tip">在画面上拖动鼠标框选区域，右键或 Esc 取消</div>
+          <div id="dragRect" class="drag-rect" style="display:none"></div>
+        </div>
+      </div>
+      <div class="player-toolbar">
+        <button id="stopButton" class="primary" type="button" disabled>停止播放</button>
+        <span id="playerState" class="player-state">未播放</span>
+      </div>
+    </section>
+
+    <!-- 右：控制面板 -->
+    <aside id="ctrlPanel" class="ctrl-panel" aria-label="通道控制">
+      <div class="ctrl-inner">
+        <div class="ctrl-header">
+          <h3>通道控制</h3>
+          <span id="controlChannel" class="ctrl-channel">请选择在线通道</span>
+        </div>
+        <div class="ctrl-body">
+          <fieldset id="controlFieldset" disabled>
+            <div class="ptz-section-inner">
+              <div class="ptz-top">
+                <div class="ptz-dpad">
+                  <div class="dpad-ring"></div>
+                  <button type="button" class="dpad-btn card card-up" data-ptz="up">▲</button>
+                  <button type="button" class="dpad-btn card card-right" data-ptz="right">▶</button>
+                  <button type="button" class="dpad-btn card card-down" data-ptz="down">▼</button>
+                  <button type="button" class="dpad-btn card card-left" data-ptz="left">◀</button>
+                  <button type="button" class="dpad-btn diag diag-upright" data-ptz="upright"><span style="transform:rotate(45deg)">▲</span></button>
+                  <button type="button" class="dpad-btn diag diag-downright" data-ptz="downright"><span style="transform:rotate(135deg)">▲</span></button>
+                  <button type="button" class="dpad-btn diag diag-downleft" data-ptz="downleft"><span style="transform:rotate(225deg)">▲</span></button>
+                  <button type="button" class="dpad-btn diag diag-upleft" data-ptz="upleft"><span style="transform:rotate(-45deg)">▲</span></button>
+                  <button type="button" class="dpad-btn dpad-center" id="ptzStopBtn" title="停止">⏹</button>
+                </div>
+                <div class="ptz-func-col">
+                  <div class="ptz-func-group">
+                    <div class="ptz-func-row">
+                      <div class="ptz-func-btn" data-ptz="zoomin"><i>⊕</i><span>变倍+</span></div>
+                      <div class="ptz-func-btn" data-ptz="zoomout"><i>⊖</i><span>变倍-</span></div>
+                    </div>
+                    <div class="ptz-func-row">
+                      <div class="ptz-func-btn" data-focus="near"><i>◉</i><span>聚焦+</span></div>
+                      <div class="ptz-func-btn" data-focus="far"><i>◎</i><span>聚焦-</span></div>
+                    </div>
+                    <div class="ptz-func-row">
+                      <div class="ptz-func-btn" data-iris="in"><i>☀</i><span>光圈+</span></div>
+                      <div class="ptz-func-btn" data-iris="out"><i>☼</i><span>光圈-</span></div>
+                    </div>
+                    <div class="ptz-func-row">
+                      <div class="ptz-func-btn" id="dragZoomInBtn" data-dragzoom="in"><i>⬚</i><span>拉框放大</span></div>
+                      <div class="ptz-func-btn" id="dragZoomOutBtn" data-dragzoom="out"><i>⬚</i><span>拉框缩小</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ptz-bottom">
+                <div class="slider-with-controls">
+                  <span class="slider-label">速度</span>
+                  <button type="button" class="slider-btn" id="speedMinus">−</button>
+                  <input type="range" id="speedSlider" min="1" max="100" value="50">
+                  <button type="button" class="slider-btn" id="speedPlus">+</button>
+                  <span class="slider-value" id="speedValue">50</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ctrl-section">
+              <h4>预置位</h4>
+              <div class="ctrl-actions">
+                <button id="queryPresetButton" type="button">查询预置位</button>
+                <button id="callPresetButton" type="button">调用预置位</button>
+              </div>
+              <div id="presetTags" class="preset-tags"><span class="preset-empty">请先查询预置位</span></div>
+              <div class="preset-row">
+                <input id="presetIdInput" type="number" min="1" max="255" placeholder="预置位编号（点击上方标签或手输）">
+              </div>
+            </div>
+
+            <div class="ctrl-section">
+              <h4>辅助</h4>
+              <div class="ctrl-actions">
+                <button type="button" data-wiper="on">雨刷开</button>
+                <button type="button" data-wiper="off">雨刷关</button>
+              </div>
+            </div>
+          </fieldset>
+          <p class="ctrl-hint">方向/变倍/聚焦/光圈：按住即动，松开即停。控制接口使用数据库通道 ID（<code>channelId</code>），仅 GB28181 / JT1078 通道支持。</p>
+        </div>
+        <pre id="log" class="log" aria-label="请求日志"></pre>
+      </div>
+    </aside>
+  </div>
+  <button id="ctrlToggle" class="ctrl-toggle" type="button" title="收起控制面板">▶</button>
+
+  <script>
+    (function ($) {
+      'use strict'
+
+      // 测试页面固定使用当前 Docker WVP 实例；生产环境请勿在前端硬编码账号密码。
+      var API_BASE = 'http://192.168.1.200:8080'
+      var USERNAME = 'admin'
+      var PASSWORD = 'ABCabc123@'
+      var token = ''
+      var rootNode = null
+      var nodeSequence = 0
+      var currentChannelId = null
+      var currentChannelNode = null
+      var jessibuca = null
+      var jessibucaLoaded = false
+      var playRequestSequence = 0
+      var controlDetailRequestSequence = 0
+
+      $('#apiBaseText').text(API_BASE)
+
+      /* ---------------- 通用工具 ---------------- */
+      function log(message, type) {
+        var now = new Date().toLocaleTimeString()
+        var prefix = type === 'error' ? '[错误]' : type === 'success' ? '[成功]' : '[信息]'
+        var current = $('#log').text()
+        $('#log').text(current + (current ? '\n' : '') + now + ' ' + prefix + ' ' + message)
+        var logElement = document.getElementById('log')
+        logElement.scrollTop = logElement.scrollHeight
+      }
+      function setStatus(message, type) { $('#status').removeClass('success error loading').addClass(type || '').text(message) }
+      function setPlayerState(message, type) { $('#playerState').removeClass('success error loading').addClass(type || '').text(message) }
+      function setPlayerPlaceholder(message, isError) { $('#playerPlaceholder').text(message).toggleClass('error', Boolean(isError)).show() }
+      function hidePlayerPlaceholder() { $('#playerPlaceholder').hide() }
+      function setTreeButtons(enabled) { $('#refreshButton, #expandButton, #collapseButton').prop('disabled', !enabled) }
+      function setControlEnabled(enabled) { $('#controlFieldset').prop('disabled', !enabled); if (!enabled) exitDragZoom() }
+
+      function formatError(xhr, fallback) {
+        var response = xhr && xhr.responseJSON
+        if (response && response.msg) return response.msg + '（HTTP ' + xhr.status + '）'
+        if (xhr && xhr.status) return fallback + '（HTTP ' + xhr.status + '）'
+        return fallback
+      }
+
+      function requestJson(path, options) {
+        options = options || {}
+        var requestOptions = {
+          url: API_BASE + path,
+          method: options.method || 'GET',
+          dataType: 'json',
+          timeout: options.timeout || 15000,
+          headers: options.headers || {}
+        }
+        if (options.data) requestOptions.data = options.data
+        return $.ajax(requestOptions).then(function (response) {
+          if (!response || typeof response.code === 'undefined') throw new Error('API 返回格式不正确')
+          if (response.code !== 0) throw new Error(response.msg || ('API 返回错误码：' + response.code))
+          return response.data
+        }, function (xhr) {
+          throw new Error(formatError(xhr, 'API 请求失败'))
+        })
+      }
+
+      /* ---------------- 通道类型 / 控制能力 ---------------- */
+      function channelTypeName(dataType) {
+        switch (Number(dataType)) {
+          case 1: return 'GB28181'
+          case 2: return '推流设备'
+          case 3: return '拉流代理'
+          case 200: return 'JT/T 1078'
+          default: return '未知类型'
+        }
+      }
+      function isControlSupported(data) {
+        var dataType = Number(data && data.dataType)
+        return dataType === 1 || dataType === 200
+      }
+      function updateControlState(node) {
+        if (!node || !isChannel(node.data)) {
+          $('#controlChannel').text('请选择在线通道')
+          setControlEnabled(false)
+          return
+        }
+        var channelId = nodeChannelId(node.data)
+        var dataType = Number(node.data.dataType)
+        if (!nodeOnline(node.data)) {
+          $('#controlChannel').text('通道 ' + channelId + '（离线）')
+          setControlEnabled(false)
+        } else if (!node.data.dataType) {
+          $('#controlChannel').text('通道 ' + channelId + '（读取类型中）')
+          setControlEnabled(false)
+        } else if (!isControlSupported(node.data)) {
+          $('#controlChannel').text('通道 ' + channelId + '（' + channelTypeName(dataType) + '不支持云台）')
+          setControlEnabled(false)
+        } else {
+          $('#controlChannel').text('通道 ' + channelId + '（' + channelTypeName(dataType) + '）')
+          setControlEnabled(channelId !== '')
+        }
+      }
+      function loadChannelDetail(node) {
+        if (!node || !isChannel(node.data)) return
+        var channelId = nodeChannelId(node.data)
+        var requestId = ++controlDetailRequestSequence
+        updateControlState(node)
+        if (channelId === '') return
+        requestJson('/api/common/channel/one', {
+          data: { id: channelId },
+          headers: { 'access-token': token }
+        }).then(function (detail) {
+          if (requestId !== controlDetailRequestSequence || currentChannelNode !== node) return
+          if (!detail) throw new Error('通道详情为空')
+          node.data = $.extend({}, node.data, detail)
+          updateControlState(node)
+          log('通道 ' + channelId + ' 类型：' + channelTypeName(node.data.dataType))
+        }).catch(function (error) {
+          if (requestId !== controlDetailRequestSequence || currentChannelNode !== node) return
+          setControlEnabled(false)
+          $('#controlChannel').text('通道类型读取失败')
+          log('读取通道 ' + channelId + ' 控制能力失败：' + (error.message || error), 'error')
+        })
+      }
+
+      function controlChannelId() {
+        if (!currentChannelNode || !isChannel(currentChannelNode.data)) throw new Error('请先选择通道')
+        var channelId = nodeChannelId(currentChannelNode.data)
+        if (channelId === '') throw new Error('当前通道缺少数据库 ID')
+        if (!nodeOnline(currentChannelNode.data)) throw new Error('当前通道离线，无法控制')
+        if (!isControlSupported(currentChannelNode.data)) throw new Error('当前通道为' + channelTypeName(currentChannelNode.data.dataType) + '，不支持云台控制')
+        return channelId
+      }
+
+      function requestControl(path, data, description) {
+        log('GET ' + path + '?' + $.param(data))
+        return requestJson(path, { data: data, headers: { 'access-token': token }, timeout: 30000 })
+          .then(function (result) { log(description + '成功', 'success'); return result })
+          .catch(function (error) {
+            log(description + '失败：' + (error && error.message ? error.message : description + '失败'), 'error')
+            throw error
+          })
+      }
+
+      /* ---------------- 移植自 channelPtzPanel：commonChanel/ptz|focus|iris ---------------- */
+      var controSpeed = 50
+      var currentCommand = null
+
+      function speed() { return controSpeed }
+
+      // 对应 channelPtzPanel.onPtzMove / onPtzStop
+      function ptz(command, sp) {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/ptz', {
+          channelId: channelId, command: command, panSpeed: sp, tiltSpeed: sp, zoomSpeed: sp
+        }, '云台 ' + command)
+      }
+      // 对应 channelPtzPanel.onFocusMove / onFocusStop
+      function focus(command, sp) {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/fi/focus', { channelId: channelId, command: command, speed: sp }, '聚焦 ' + command)
+      }
+      // 对应 channelPtzPanel.onIrisMove / onIrisStop
+      function iris(command, sp) {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/fi/iris', { channelId: channelId, command: command, speed: sp }, '光圈 ' + command)
+      }
+      function wiper(command) {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/wiper', { channelId: channelId, command: command }, '雨刷 ' + command)
+      }
+
+      function safe(fn) {
+        try { var p = fn(); if (p && p.catch) p.catch(function () {}) } catch (e) { log(e.message || '控制失败', 'error') }
+      }
+
+      // 对应 ptzControls.handlePtzMove / handlePtzStop / onWindowMouseUp：按住即动，松开即停
+      function bindHold($el, onDown, onUp) {
+        $el.on('mousedown touchstart', function (e) {
+          if (e.type === 'mousedown' && e.button !== 0) return
+          e.preventDefault()
+          $(this).addClass('pressed')
+          currentCommand = { el: this, up: onUp }
+          onDown.call(this)
+        })
+        $el.on('mouseup touchend', function (e) {
+          e.preventDefault()
+          releaseHold()
+        })
+      }
+      function releaseHold() {
+        if (!currentCommand) return
+        $(currentCommand.el).removeClass('pressed')
+        var up = currentCommand.up
+        currentCommand = null
+        up()
+      }
+      $(window).on('mouseup touchend touchcancel', releaseHold)
+
+      bindHold($('[data-ptz]'), function () {
+        var direction = $(this).data('ptz')
+        safe(function () { return ptz(direction, speed()) })
+      }, function () {
+        safe(function () { return ptz('stop', 0) })
+      })
+      bindHold($('[data-focus]'), function () {
+        var command = $(this).data('focus')
+        safe(function () { return focus(command, speed()) })
+      }, function () {
+        safe(function () { return focus('stop', 0) })
+      })
+      bindHold($('[data-iris]'), function () {
+        var command = $(this).data('iris')
+        safe(function () { return iris(command, speed()) })
+      }, function () {
+        safe(function () { return iris('stop', 0) })
+      })
+      $('#ptzStopBtn').on('click', function () { safe(function () { return ptz('stop', 0) }) })
+      $('[data-wiper]').on('click', function () {
+        var command = $(this).data('wiper')
+        safe(function () { return wiper(command) })
+      })
+
+      // 速度滑块，对应 ptzControls.controSpeed / adjustSpeed
+      function setSpeed(v) {
+        v = Math.max(1, Math.min(100, Number(v) || 50))
+        controSpeed = v
+        $('#speedSlider').val(v)
+        $('#speedValue').text(v)
+      }
+      $('#speedSlider').on('input change', function () { setSpeed($(this).val()) })
+      $('#speedMinus').on('click', function () { setSpeed(controSpeed - 1) })
+      $('#speedPlus').on('click', function () { setSpeed(controSpeed + 1) })
+
+      /* ---------------- 拉框放大 / 缩小（对应 toggleDragZoom + drag_zoom_in/out） ---------------- */
+      var dragZoomDirection = ''
+      var dragStart = null
+
+      function enterDragZoom(direction) {
+        if (dragZoomDirection === direction) { exitDragZoom(); return }
+        try { controlChannelId() } catch (e) { log(e.message, 'error'); return }
+        dragZoomDirection = direction
+        $('#dragLayer').addClass('active')
+        $('#dragTip').text('在画面上拖动鼠标框选' + (direction === 'in' ? '放大' : '缩小') + '区域，右键或 Esc 取消')
+        $('#dragZoomInBtn').toggleClass('active-mode', direction === 'in')
+        $('#dragZoomOutBtn').toggleClass('active-mode', direction === 'out')
+      }
+      function exitDragZoom() {
+        dragZoomDirection = ''
+        dragStart = null
+        $('#dragLayer').removeClass('active')
+        $('#dragRect').hide()
+        $('#dragZoomInBtn, #dragZoomOutBtn').removeClass('active-mode')
+      }
+      $('#dragZoomInBtn').on('click', function () { enterDragZoom('in') })
+      $('#dragZoomOutBtn').on('click', function () { enterDragZoom('out') })
+      $(document).on('keydown', function (e) { if (e.key === 'Escape') exitDragZoom() })
+      $('#dragLayer').on('contextmenu', function (e) { e.preventDefault(); exitDragZoom() })
+
+      $('#dragLayer').on('mousedown', function (e) {
+        if (e.button !== 0 || !dragZoomDirection) return
+        var rect = this.getBoundingClientRect()
+        dragStart = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+        $('#dragRect').css({ left: dragStart.x, top: dragStart.y, width: 0, height: 0 }).show()
+      })
+      $('#dragLayer').on('mousemove', function (e) {
+        if (!dragStart) return
+        var rect = this.getBoundingClientRect()
+        var x = e.clientX - rect.left, y = e.clientY - rect.top
+        $('#dragRect').css({
+          left: Math.min(x, dragStart.x), top: Math.min(y, dragStart.y),
+          width: Math.abs(x - dragStart.x), height: Math.abs(y - dragStart.y)
+        })
+      })
+      $('#dragLayer').on('mouseup', function (e) {
+        if (e.button !== 0 || !dragStart) return
+        var rect = this.getBoundingClientRect()
+        var x = e.clientX - rect.left, y = e.clientY - rect.top
+        var lengthX = Math.round(Math.abs(x - dragStart.x))
+        var lengthY = Math.round(Math.abs(y - dragStart.y))
+        var midPointX = Math.round((x + dragStart.x) / 2)
+        var midPointY = Math.round((y + dragStart.y) / 2)
+        var direction = dragZoomDirection
+        dragStart = null
+        $('#dragRect').hide()
+        if (lengthX < 5 || lengthY < 5) { log('拉框区域太小，已忽略'); return }
+        var path = direction === 'in' ? '/api/common/channel/front-end/drag_zoom_in' : '/api/common/channel/front-end/drag_zoom_out'
+        safe(function () {
+          var channelId = controlChannelId()
+          return requestControl(path, {
+            channelId: channelId,
+            length: Math.round(rect.width),
+            width: Math.round(rect.height),
+            midPointX: midPointX, midPointY: midPointY,
+            lengthX: lengthX, lengthY: lengthY
+          }, direction === 'in' ? '拉框放大' : '拉框缩小')
+        })
+        exitDragZoom()
+      })
+
+      /* ---------------- 预置位 ---------------- */
+      function queryPresets() {
+        var channelId = controlChannelId()
+        return requestControl('/api/common/channel/front-end/preset/query', { channelId: channelId }, '预置位查询')
+          .then(function (presets) {
+            var $tags = $('#presetTags').empty()
+            if (!Array.isArray(presets) || !presets.length) {
+              $tags.append($('<span>', { 'class': 'preset-empty', text: '设备未返回预置位' }))
+              return presets
+            }
+            $.each(presets, function (_, preset) {
+              var presetId = preset.presetId === undefined ? '' : preset.presetId
+              $tags.append($('<span>', {
+                'class': 'preset-tag',
+                text: preset.presetName || ('预置位 ' + presetId),
+                title: '编号 ' + presetId
+              }).on('click', function () {
+                $('#presetIdInput').val(presetId)
+                safe(callPreset)
+              }))
+            })
+            return presets
+          })
+      }
+      function callPreset() {
+        var channelId = controlChannelId()
+        var presetId = Number($('#presetIdInput').val())
+        if (!Number.isInteger(presetId) || presetId < 1 || presetId > 255) throw new Error('预置位编号必须是 1-255 的整数')
+        return requestControl('/api/common/channel/front-end/preset/call', { channelId: channelId, presetId: presetId }, '调用预置位 ' + presetId)
+      }
+      $('#queryPresetButton').on('click', function () { safe(queryPresets) })
+      $('#callPresetButton').on('click', function () { safe(callPreset) })
+
+      /* ---------------- 右侧面板收起 / 展开 ---------------- */
+      $('#ctrlToggle').on('click', function () {
+        var collapsed = $('#ctrlPanel').toggleClass('collapsed').hasClass('collapsed')
+        $(this).toggleClass('collapsed', collapsed).text(collapsed ? '◀' : '▶').attr('title', collapsed ? '展开控制面板' : '收起控制面板')
+      })
+
+      /* ---------------- 登录 ---------------- */
+      function login() {
+        setStatus('正在登录…', 'loading')
+        log('GET /api/user/login')
+        return requestJson('/api/user/login', {
+          data: { username: USERNAME, password: CryptoJS.MD5(PASSWORD).toString() }
+        }).then(function (data) {
+          if (!data || !data.accessToken) throw new Error('登录成功但未返回 accessToken')
+          token = data.accessToken
+          setStatus('登录成功', 'success')
+          setTreeButtons(true)
+          log('登录成功，已获取 access-token', 'success')
+          return token
+        }).catch(function (error) {
+          token = ''
+          setTreeButtons(false)
+          setStatus('登录失败', 'error')
+          log(error && error.message ? error.message : '登录请求失败，请检查 API 地址、账号或密码', 'error')
+          throw error
+        })
+      }
+
+      /* ---------------- 树 ---------------- */
+      function createVirtualRoot() {
+        return {
+          key: 'root',
+          data: { id: null, treeId: '', deviceId: '', name: '根资源组', type: 0, leaf: false, isLeaf: false },
+          isRoot: true, loaded: false, loading: false, expanded: false, children: []
+        }
+      }
+      function isChannel(data) { return Number(data.type) === 1 }
+      function isLeaf(data) { return isChannel(data) || data.leaf === true || data.isLeaf === true }
+      function nodeLabel(data) { return data.name || data.gbName || data.deviceId || data.gbDeviceId || '未命名节点' }
+      function nodeDeviceId(data) { return data.deviceId || data.gbDeviceId || '' }
+      function nodeOnline(data) { return data.status === 'ON' || data.gbStatus === 'ON' }
+      // GroupTree 的通道节点由 wvp_device_channel.id 映射而来；id 是播放/控制接口所需的数据库 ID。
+      function nodeChannelId(data) { return data.id !== undefined && data.id !== null ? data.id : '' }
+
+      function apiPathFor(node) {
+        var params = { hasChannel: node.isRoot ? 'false' : 'true' }
+        if (!node.isRoot && node.data.id !== null && node.data.id !== undefined) params.parent = node.data.id
+        return '/api/group/tree/list?' + $.param(params)
+      }
+
+      function setSelectedNode(node) {
+        $('.tree-row.selected').removeClass('selected')
+        if (node && node.$row) node.$row.addClass('selected')
+        currentChannelNode = node || null
+        exitDragZoom()
+        if (node && isChannel(node.data)) {
+          var channelId = nodeChannelId(node.data)
+          $('#playerChannelName').text(nodeLabel(node.data))
+          $('#playerChannelId').text('通道 ID：' + channelId + (nodeDeviceId(node.data) ? '｜设备：' + nodeDeviceId(node.data) : ''))
+          $('#stopButton').prop('disabled', false)
+          $('#presetTags').empty().append($('<span>', { 'class': 'preset-empty', text: '请先查询预置位' }))
+          updateControlState(node)
+          loadChannelDetail(node)
+        } else {
+          ++controlDetailRequestSequence
+          $('#playerChannelName').text('未选择通道')
+          $('#playerChannelId').text('请选择左侧在线通道开始播放')
+          $('#stopButton').prop('disabled', true)
+          $('#controlChannel').text('请选择在线通道')
+          setControlEnabled(false)
+        }
+      }
+
+      function renderNode(node) {
+        var data = node.data
+        var channel = isChannel(data)
+        var leaf = isLeaf(data)
+        var online = nodeOnline(data)
+        var $li = $('<li>', { 'class': 'tree-node', 'data-node-key': node.key })
+        var $row = $('<div>', {
+          'class': 'tree-row' + (channel ? ' channel-row' : ''),
+          role: channel ? 'button' : undefined,
+          tabindex: channel ? '0' : undefined,
+          title: channel ? (online ? '点击播放' : '通道离线，无法播放') : ''
+        })
+        var $toggle = $('<button>', { 'class': 'tree-toggle' + (leaf ? ' empty' : ''), type: 'button' })
+        if (!leaf) {
+          $toggle.text(node.expanded ? '▾' : '▸')
+          $toggle.on('click', function (event) { event.stopPropagation(); toggleNode(node) })
+        }
+        var $icon = $('<span>', { 'class': 'node-icon ' + (channel ? 'channel ' + (online ? 'online' : 'offline') : 'group'), text: channel ? '▣' : '▰' })
+        var $name = $('<span>', { 'class': 'node-name', text: nodeLabel(data) })
+        $row.append($toggle, $icon, $name)
+        var deviceId = nodeDeviceId(data)
+        if (deviceId) $row.append($('<span>', { 'class': 'node-meta', text: deviceId }))
+        if (channel) {
+          $row.append($('<span>', { 'class': 'node-status ' + (online ? 'online' : 'offline'), text: online ? '在线' : '离线' }))
+          $row.on('click', function () { playChannel(node) })
+          $row.on('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); playChannel(node) }
+          })
+        }
+        $li.append($row)
+        node.$row = $row
+        if (!leaf) {
+          var $children = $('<ul>', { 'class': 'tree-children' })
+          if (!node.expanded) $children.hide()
+          $li.append($children)
+          node.$children = $children
+          node.$toggle = $toggle
+          if (node.loaded) renderChildren(node)
+        }
+        node.$element = $li
+        return $li
+      }
+
+      function renderChildren(node) {
+        if (!node.$children) return
+        node.$children.empty()
+        if (!node.children.length) {
+          node.$children.append($('<li>', { 'class': 'empty-row', text: node.isRoot ? '根资源组下暂无分组' : '该节点下暂无子分组或通道' }))
+          return
+        }
+        $.each(node.children, function (_, child) { node.$children.append(renderNode(child)) })
+      }
+
+      function replaceRoot() {
+        rootNode = createVirtualRoot()
+        $('#treeRoot').empty().append(renderNode(rootNode))
+      }
+
+      function loadChildren(node) {
+        if (node.loading) return $.Deferred().reject().promise()
+        node.loading = true
+        node.expanded = true
+        if (node.$toggle) node.$toggle.removeClass('empty').addClass('loading').text('…')
+        if (node.$children) node.$children.show().empty().append($('<li>', { 'class': 'loading-row', text: '正在加载…' }))
+        var path = apiPathFor(node)
+        log('GET ' + path)
+        return requestJson(path, { headers: { 'access-token': token } }).then(function (data) {
+          if (!Array.isArray(data)) throw new Error('树接口返回的数据不是数组')
+          node.children = data.map(function (item) {
+            nodeSequence += 1
+            return { key: (item.treeId || item.deviceId || 'node') + '-' + nodeSequence, data: item, isRoot: false, loaded: false, loading: false, expanded: false, children: [] }
+          })
+          node.loaded = true
+          renderChildren(node)
+          log('返回 ' + data.length + ' 个节点', 'success')
+          return data
+        }).catch(function (error) {
+          var message = error && error.message ? error.message : '树节点请求失败'
+          if (node.$children) node.$children.empty().append($('<li>', { 'class': 'error-row', text: message }))
+          log(message, 'error')
+          return $.Deferred().reject(error).promise()
+        }).always(function () {
+          node.loading = false
+          if (node.$toggle) node.$toggle.removeClass('loading').text(node.expanded ? '▾' : '▸')
+        })
+      }
+
+      function toggleNode(node) {
+        if (isLeaf(node.data)) return
+        if (node.expanded) {
+          node.expanded = false
+          if (node.$children) node.$children.slideUp(100)
+          if (node.$toggle) node.$toggle.text('▸')
+          return
+        }
+        node.expanded = true
+        if (node.$children) node.$children.slideDown(100)
+        if (node.loaded) { if (node.$toggle) node.$toggle.text('▾'); return }
+        loadChildren(node).catch(function () {
+          node.expanded = false
+          if (node.$children) node.$children.hide()
+          if (node.$toggle) node.$toggle.text('▸')
+        })
+      }
+
+      function expandAll(node) {
+        if (isLeaf(node.data)) return $.Deferred().resolve().promise()
+        node.expanded = true
+        if (node.$children) node.$children.show()
+        return (node.loaded ? $.Deferred().resolve().promise() : loadChildren(node)).then(function () {
+          var tasks = []
+          $.each(node.children, function (_, child) { if (!isLeaf(child.data)) tasks.push(expandAll(child)) })
+          return $.when.apply($, tasks)
+        })
+      }
+      function collapseAll(node) {
+        if (node.$children) node.$children.hide()
+        if (node.$toggle && !isLeaf(node.data)) node.$toggle.text('▸')
+        node.expanded = false
+        $.each(node.children, function (_, child) { collapseAll(child) })
+      }
+
+      /* ---------------- WebRTC 播放 ---------------- */
+      function requestStop(channelId) {
+        if (channelId === null || channelId === undefined || channelId === '') return $.Deferred().resolve().promise()
+        log('GET /api/common/channel/play/stop?channelId=' + encodeURIComponent(channelId))
+        return $.ajax({
+          url: API_BASE + '/api/common/channel/play/stop',
+          method: 'GET', data: { channelId: channelId }, dataType: 'text', timeout: 10000,
+          headers: { 'access-token': token }
+        }).then(function () {
+          log('已请求停止通道 ' + channelId, 'success')
+        }, function (xhr) {
+          log(formatError(xhr, '停止播放请求失败'), 'error')
+        })
+      }
+
+      /* ---------------- Jessibuca ws-flv 播放（参照 web/src/views/common/jessibuca.vue） ---------------- */
+      function createJessibuca() {
+        if (jessibuca) return jessibuca
+        if (!window.Jessibuca) throw new Error('未加载 jessibuca.js，请确认 static/js/jessibuca/ 与本页同源可访问')
+        var container = document.getElementById('jessibucaContainer')
+        jessibuca = new window.Jessibuca({
+          container: container,
+          videoBuffer: 0,
+          isResize: true,
+          useMSE: false,
+          useWCS: false,
+          text: '',
+          controlAutoHide: false,
+          debug: false,
+          hotKey: true,
+          decoder: 'static/js/jessibuca/decoder.js',
+          isNotMute: false,
+          timeout: 10,
+          recordType: 'mp4',
+          isFlv: false,
+          forceNoOffscreen: true,
+          hasAudio: true,
+          heartTimeout: 5,
+          heartTimeoutReplay: true,
+          heartTimeoutReplayTimes: 3,
+          hiddenAutoPause: false,
+          isFullResize: false,
+          keepScreenOn: true,
+          loadingText: '请稍等, 视频加载中......',
+          loadingTimeout: 10,
+          loadingTimeoutReplay: true,
+          loadingTimeoutReplayTimes: 3,
+          openWebglAlignment: false,
+          operateBtns: { fullscreen: true, screenshot: true, play: true, audio: true, recorder: false },
+          showBandwidth: true,
+          supportDblclickFullscreen: true,
+          useWebFullSreen: true,
+          wasmDecodeErrorReplay: true,
+          wcsUseVideoRendcer: true
+        })
+        jessibuca.on('load', function () { jessibucaLoaded = true })
+        jessibuca.on('play', function () {
+          hidePlayerPlaceholder()
+          setPlayerState('播放中', 'success')
+          log('通道 ' + currentChannelId + ' ws-flv 播放成功', 'success')
+        })
+        jessibuca.on('pause', function () { setPlayerState('已暂停') })
+        jessibuca.on('videoInfo', function (msg) { log('视频信息：' + JSON.stringify(msg)) })
+        jessibuca.on('audioInfo', function (msg) { log('音频信息：' + JSON.stringify(msg)) })
+        jessibuca.on('error', function (msg) {
+          setPlayerState('播放错误', 'error')
+          setPlayerPlaceholder('Jessibuca 错误：' + msg, true)
+          log('Jessibuca error: ' + msg, 'error')
+        })
+        jessibuca.on('timeout', function (msg) {
+          setPlayerState('连接超时', 'error')
+          setPlayerPlaceholder('ws-flv 连接超时，请检查 nginx 是否代理了该流路径。', true)
+          log('Jessibuca timeout: ' + msg, 'error')
+        })
+        jessibuca.on('loadingTimeout', function (msg) { log('Jessibuca loadingTimeout: ' + msg, 'error') })
+        jessibuca.on('delayTimeout', function (msg) { log('Jessibuca delayTimeout: ' + msg, 'error') })
+        return jessibuca
+      }
+
+      function closePlayer() {
+        if (jessibuca) {
+          try { jessibuca.pause(); jessibuca.clearView() } catch (error) { console.warn('停止 Jessibuca 失败', error) }
+        }
+      }
+
+      function jessibucaPlay(url) {
+        var player = createJessibuca()
+        if (player.hasLoaded && player.hasLoaded()) {
+          player.play(url)
+        } else if (jessibucaLoaded) {
+          player.play(url)
+        } else {
+          player.on('load', function () { player.play(url) })
+        }
+      }
+
+      function forceWsPort(url) {
+        if (!url) return ''
+        // nginx 已通过 sub_filter 把 :80 改写为 :8080；这里兜底，防止直连 18978 时端口仍为 80。
+        try {
+          var parsed = new URL(url)
+          if ((parsed.protocol === 'ws:' || parsed.protocol === 'wss:') && (parsed.port === '' || parsed.port === '80')) {
+            parsed.port = '8080'
+            return parsed.toString()
+          }
+          return url
+        } catch (error) {
+          return String(url).replace(/^(wss?:\/\/[^/:]+)(:80)?\//, '$1:8080/')
+        }
+      }
+
+      // 对应 playerTabs.vue：player.jessibuca = ['ws_flv', 'wss_flv']
+      function getWsFlvUrl(streamContent) {
+        if (!streamContent) return ''
+        var field = window.location.protocol === 'https:' ? 'wss_flv' : 'ws_flv'
+        var fallback = field === 'wss_flv' ? 'ws_flv' : 'wss_flv'
+        var value = streamContent[field] || streamContent[fallback]
+        if (value && typeof value === 'object') return forceWsPort(value.url || '')
+        return forceWsPort(value || '')
+      }
+
+      function startPlayback(node, requestId) {
+        var channelId = nodeChannelId(node.data)
+        if (channelId === '') throw new Error('通道缺少数据库 ID，无法调用播放接口')
+        setPlayerState('正在请求流…', 'loading')
+        setPlayerPlaceholder('正在请求媒体流并建立 ws-flv 连接…')
+        log('使用通道 ID ' + channelId + ' 调用 WVP 播放接口')
+        return requestJson('/api/common/channel/play', {
+          data: { channelId: channelId }, headers: { 'access-token': token }, timeout: 60000
+        }).then(function (streamContent) {
+          if (requestId !== playRequestSequence) { requestStop(channelId); return null }
+          var info = (streamContent && streamContent.transcodeStream) || streamContent
+          var wsUrl = getWsFlvUrl(info)
+          if (!wsUrl) throw new Error('播放接口未返回 ws_flv/wss_flv 地址')
+          currentChannelId = channelId
+          $('#playerChannelId').text('通道 ID：' + channelId + '｜ws-flv：' + wsUrl)
+          log('收到 ws-flv 地址：' + wsUrl)
+          try {
+            jessibucaPlay(wsUrl)
+          } catch (error) { throw new Error('创建 Jessibuca 播放器失败：' + (error.message || error)) }
+          return streamContent
+        }).catch(function (error) {
+          if (requestId !== playRequestSequence) return null
+          closePlayer()
+          currentChannelId = null
+          var message = error && error.message ? error.message : 'ws-flv 播放失败'
+          setPlayerState('播放失败', 'error')
+          setPlayerPlaceholder(message, true)
+          log(message, 'error')
+          throw error
+        })
+      }
+
+      function playChannel(node) {
+        var data = node.data
+        var channelId = nodeChannelId(data)
+        setSelectedNode(node)
+        var requestId = ++playRequestSequence
+        var oldChannelId = currentChannelId
+        closePlayer()
+        currentChannelId = null
+        setPlayerState('准备播放', 'loading')
+        if (!nodeOnline(data)) {
+          setPlayerState('通道离线', 'error')
+          setPlayerPlaceholder('当前通道离线，未发起播放请求。', true)
+          log('通道 ' + (channelId || nodeLabel(data)) + ' 当前离线，跳过播放', 'error')
+          return
+        }
+        var stopPromise = oldChannelId ? requestStop(oldChannelId) : $.Deferred().resolve().promise()
+        stopPromise.always(function () {
+          if (requestId !== playRequestSequence) return
+          startPlayback(node, requestId).catch(function () {})
+        })
+      }
+
+      function stopPlayback() {
+        ++playRequestSequence
+        var oldChannelId = currentChannelId
+        currentChannelId = null
+        closePlayer()
+        setPlayerState('未播放')
+        setPlayerPlaceholder('ws-flv 播放画面将在这里显示')
+        if (oldChannelId) requestStop(oldChannelId)
+        log('已停止本地 Jessibuca 播放器', 'success')
+      }
+
+      function refreshTree() {
+        if (!token) { setStatus('未登录', 'error'); return }
+        stopPlayback()
+        setSelectedNode(null)
+        replaceRoot()
+        setStatus('正在加载树…', 'loading')
+        loadChildren(rootNode).then(function () { setStatus('树加载完成', 'success') })
+          .catch(function () { setStatus('树加载失败', 'error') })
+      }
+
+      /* ---------------- 事件绑定 & 启动 ---------------- */
+      $('#refreshButton').on('click', refreshTree)
+      $('#expandButton').on('click', function () {
+        if (!rootNode) return
+        setStatus('正在展开全部…', 'loading')
+        expandAll(rootNode).then(function () { setStatus('已展开全部', 'success') })
+          .catch(function () { setStatus('展开全部时有节点加载失败', 'error') })
+      })
+      $('#collapseButton').on('click', function () {
+        if (!rootNode) return
+        collapseAll(rootNode)
+        setStatus('已收起全部', 'success')
+      })
+      $('#stopButton').on('click', stopPlayback)
+      $(window).on('beforeunload', function () { if (jessibuca) { try { jessibuca.destroy() } catch (e) {} } })
+
+      setControlEnabled(false)
+      setSpeed(50)
+      replaceRoot()
+      login().then(refreshTree).catch(function () {
+        $('#treeRoot').empty().append($('<li>', { 'class': 'error-row', text: '自动登录失败，请检查浏览器控制台、API 地址和账号配置。' }))
+      })
+    })(jQuery)
+  </script>
+</body>
+</html>
