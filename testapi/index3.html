@@ -104,12 +104,34 @@
     .slot-container video { width: 100%; height: 100%; object-fit: contain; }
     .slot-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 10px; color: #64748b; text-align: center; font-size: 12px; pointer-events: none; }
     .slot-placeholder.error { color: #fca5a5; }
-    .slot-label { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 5px 7px; background: linear-gradient(transparent, rgba(0,0,0,0.85)); color: #f8fafc; font-size: 12px; pointer-events: none; }
+    .slot-label { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 5px 38px 5px 7px; background: linear-gradient(transparent, rgba(0,0,0,0.85)); color: #f8fafc; font-size: 12px; pointer-events: none; }
     .slot-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .slot-index { color: #93c5fd; font-weight: 600; }
     .slot-status { margin-left: auto; color: #94a3b8; }
     .slot-status.success { color: #86efac; }
     .slot-status.error { color: #fca5a5; }
+    .slot-record {
+      display: none;
+      position: absolute;
+      top: 5px;
+      right: 34px;
+      z-index: 20;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 1px solid rgba(252,211,77,0.85);
+      border-radius: 4px;
+      background: rgba(15,23,42,0.92);
+      color: #f87171;
+      cursor: pointer;
+      pointer-events: auto;
+      font-size: 14px;
+      line-height: 20px;
+    }
+    .video-slot.has-channel .slot-record { display: inline-flex; }
+    .slot-record:hover { background: #dc2626; border-color: #fca5a5; color: #fff; }
     .slot-remove { position: absolute; top: 5px; right: 5px; z-index: 3; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: rgba(15,23,42,0.75); color: #e2e8f0; cursor: pointer; opacity: 0; transition: opacity 0.15s ease; }
     .video-slot:hover .slot-remove { opacity: 1; }
     .slot-remove:hover { background: var(--danger); color: #fff; }
@@ -135,6 +157,49 @@
     .detail-dialog .ctrl-inner { width: 100%; }
     .detail-close { position: absolute; top: 18px; right: 18px; z-index: 21; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: rgba(15,23,42,0.72); color: #fff; cursor: pointer; font-size: 20px; line-height: 1; }
     .detail-close:hover { background: var(--danger); }
+
+    /* ===== 国标录像面板 ===== */
+    .record-modal { position: absolute; inset: 0; z-index: 30; display: none; background: #1e1e1e; }
+    .record-modal.visible { display: flex; }
+    .record-dialog { display: flex; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: var(--panel); }
+    .record-sidebar { width: 255px; flex: none; display: flex; flex-direction: column; padding: 12px; border-right: 1px solid var(--border); background: #fff; }
+    .record-sidebar h3 { margin: 0 0 10px; font-size: 15px; }
+    .record-channel { margin-bottom: 10px; color: #606266; font-size: 12px; word-break: break-all; }
+    .record-date-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .record-date-row input { min-width: 0; flex: 1; height: 30px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+    .record-date-row button, .record-list-item button { min-height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: #606266; cursor: pointer; }
+    .record-date-row button:hover, .record-list-item button:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .record-list-title { padding-bottom: 6px; border-bottom: 1px solid var(--border); color: #606266; font-size: 12px; }
+    .record-list { flex: 1; min-height: 0; overflow: auto; margin: 8px 0 0; padding: 0; list-style: none; }
+    .record-list-item { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+    .record-list-item button { min-width: 0; flex: 1; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+    .record-list-item button.active { border-color: var(--danger); background: #fef0f0; color: var(--danger); }
+    .record-list-item .record-download { flex: none; width: 30px; padding: 0; text-align: center; }
+    .record-empty, .record-error { padding: 16px 4px; color: var(--muted); font-size: 12px; text-align: center; }
+    .record-error { color: var(--danger); }
+    .record-main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 12px; background: #1e1e1e; }
+    .record-main-header { display: flex; align-items: center; gap: 10px; min-height: 32px; color: #e5e7eb; }
+    .record-main-header h2 { margin: 0; font-size: 16px; }
+    .record-main-header span { color: #9ca3af; font-size: 12px; word-break: break-all; }
+    .record-close { margin-left: auto; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: rgba(15,23,42,0.72); color: #fff; cursor: pointer; font-size: 20px; line-height: 1; }
+    .record-close:hover { background: var(--danger); }
+    .record-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; margin-top: 8px; overflow: hidden; border-radius: 6px; background: #000; }
+    .record-player-container { position: absolute; inset: 0; }
+    .record-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; color: #94a3b8; text-align: center; pointer-events: none; }
+    .record-placeholder.error { color: #fca5a5; }
+    .record-timeline { position: relative; flex: none; height: 42px; margin-top: 8px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; }
+    .record-segment { position: absolute; top: 8px; height: 24px; min-width: 2px; border-radius: 3px; background: #017690; cursor: pointer; }
+    .record-segment:hover, .record-segment.active { background: #22c55e; }
+    .record-timeline-empty { padding: 10px; color: #94a3b8; font-size: 12px; text-align: center; }
+    .record-time-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: #cbd5e1; font-size: 12px; }
+    .record-time-row input { flex: 1; accent-color: var(--primary); }
+    .record-toolbar { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    .record-toolbar button, .record-toolbar select { min-height: 30px; padding: 0 9px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; color: #e2e8f0; cursor: pointer; }
+    .record-toolbar button:hover:not(:disabled), .record-toolbar select:hover { border-color: var(--primary); color: #fff; }
+    .record-toolbar button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .record-state { margin-left: auto; color: #9ca3af; font-size: 12px; }
+    .record-state.success { color: #86efac; } .record-state.error { color: #fca5a5; } .record-state.loading { color: #fcd34d; }
+    .record-download-state { margin-top: 6px; color: #94a3b8; font-size: 12px; }
 
     /* ===== 播放器 ===== */
     .player-title { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; color: #e5e7eb; }
@@ -319,6 +384,51 @@
       </div>
       <div id="videoGrid" class="video-grid grid-3" aria-label="视频宫格"></div>
 
+      <!-- 录像面板：覆盖右侧宫格区域，不影响实时播放器 Slot -->
+      <div id="recordModal" class="record-modal" role="dialog" aria-modal="true" aria-label="国标录像">
+        <div class="record-dialog">
+          <aside class="record-sidebar">
+            <h3>国标录像</h3>
+            <div id="recordChannel" class="record-channel">请选择通道</div>
+            <div class="record-date-row">
+              <input id="recordDate" type="date" aria-label="录像日期">
+              <button id="recordQueryButton" type="button">查询</button>
+            </div>
+            <div id="recordListTitle" class="record-list-title">录像文件</div>
+            <ul id="recordList" class="record-list"></ul>
+          </aside>
+          <section class="record-main">
+            <div class="record-main-header">
+              <div><h2 id="recordTitle">未选择录像</h2></div>
+              <span id="recordIds"></span>
+              <button id="recordClose" class="record-close" type="button" title="关闭录像面板">×</button>
+            </div>
+            <div id="recordStage" class="record-stage">
+              <div id="recordPlayerContainer" class="record-player-container"></div>
+              <div id="recordPlaceholder" class="record-placeholder">请选择左侧录像文件开始回放</div>
+            </div>
+            <div id="recordTimeline" class="record-timeline"><div class="record-timeline-empty">查询录像后显示时间轴</div></div>
+            <div class="record-time-row">
+              <span id="recordTimeLabel">未播放</span>
+              <input id="recordSeek" type="range" min="0" max="0" value="0" disabled aria-label="录像进度">
+            </div>
+            <div class="record-toolbar">
+              <button id="recordPrev" type="button" disabled>上一段</button>
+              <button id="recordPause" type="button" disabled>暂停</button>
+              <button id="recordNext" type="button" disabled>下一段</button>
+              <button id="recordStop" type="button" disabled>停止</button>
+              <button id="recordScreenshot" type="button" disabled>截图</button>
+              <select id="recordSpeed" aria-label="回放速度">
+                <option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option>
+              </select>
+              <button id="recordDownloadCurrent" type="button" disabled>下载当前段</button>
+              <span id="recordState" class="record-state">未播放</span>
+            </div>
+            <div id="recordDownloadState" class="record-download-state"></div>
+          </section>
+        </div>
+      </div>
+
       <!-- 双击宫格打开：播放器 + 通道控制 Panel -->
       <div id="detailModal" class="detail-modal" role="dialog" aria-modal="true" aria-label="播放器和通道控制">
         <button id="detailClose" class="detail-close" type="button" title="关闭">×</button>
@@ -446,6 +556,19 @@
       var gridSlots = []
       var activeSlot = null
       var gridSize = 3
+      var recordPlayback = {
+        slot: null,
+        deviceId: '',
+        channelId: '',
+        files: [],
+        fileIndex: -1,
+        streamInfo: null,
+        stream: '',
+        player: null,
+        requestId: 0,
+        downloadInfo: null,
+        downloadTimer: null
+      }
 
       $('#apiBaseText').text(API_BASE)
 
@@ -462,6 +585,9 @@
       function setPlayerState(message, type) { $('#playerState').removeClass('success error loading').addClass(type || '').text(message) }
       function setPlayerPlaceholder(message, isError) { $('#playerPlaceholder').text(message).toggleClass('error', Boolean(isError)).show() }
       function hidePlayerPlaceholder() { $('#playerPlaceholder').hide() }
+      function setRecordState(message, type) { $('#recordState').removeClass('success error loading').addClass(type || '').text(message) }
+      function setRecordPlaceholder(message, isError) { $('#recordPlaceholder').text(message).toggleClass('error', Boolean(isError)).show() }
+      function hideRecordPlaceholder() { $('#recordPlaceholder').hide() }
       function setSlotState(slot, message, type) {
         slot.state = message
         slot.stateType = type || ''
@@ -975,24 +1101,28 @@
         var $slotIndex = $('<span>', { 'class': 'slot-index', text: index + 1 })
         var $name = $('<span>', { text: '未添加通道' })
         var $status = $('<span>', { 'class': 'slot-status', text: slot.state })
+        var $record = $('<button>', { 'class': 'slot-record', type: 'button', title: '查看国标录像', 'aria-label': '查看国标录像', text: '●' })
         var $remove = $('<button>', { 'class': 'slot-remove', type: 'button', title: '停止并移除', text: '×' })
         $label.append($slotIndex, $name, $status)
-        $slot.append($container, $placeholder, $label, $remove)
+        $slot.append($container, $placeholder, $label, $record, $remove)
         slot.$slot = $slot
         slot.$container = $container
         slot.$placeholder = $placeholder
         slot.$name = $name
         slot.$status = $status
+        slot.$record = $record
         $slot.on('click', function () { if (slot.node) selectSlot(slot) })
         $slot[0].addEventListener('dblclick', function (event) {
           event.preventDefault()
           event.stopPropagation()
           if (slot.node) openDetail(slot)
         }, true)
+        $record.on('click', function (event) { event.preventDefault(); event.stopPropagation(); openRecordPanel(slot) })
         $remove.on('click', function (event) { event.stopPropagation(); stopSlot(slot, true) })
         return slot
       }
       function renderGrid() {
+        closeRecordPanel()
         if ($('#detailModal').hasClass('visible')) closeDetail()
         var oldSlots = gridSlots.slice()
         var $grid = $('#videoGrid').removeClass('grid-3 grid-4 grid-5').addClass('grid-' + gridSize).empty()
@@ -1064,6 +1194,7 @@
         if (!slot) return $.Deferred().resolve().promise()
         var channelId = slot.channelId
         slot.requestId += 1
+        if (recordPlayback.slot === slot) closeRecordPanel()
         if (activeSlot === slot) {
           closeDetail()
           activeSlot = null
@@ -1078,6 +1209,7 @@
         slot.stateType = ''
         slot.placeholder = '等待添加通道'
         slot.$name.text('未添加通道')
+        slot.$slot.removeClass('has-channel')
         setSlotState(slot, '空闲')
         setSlotPlaceholder(slot, slot.placeholder, false)
         if (remove) slot.$slot.removeClass('selected')
@@ -1203,6 +1335,392 @@
         return forceWsPort(value || '')
       }
 
+      /* ---------------- 国标录像：移植自 device/channel/record.vue ---------------- */
+      function formatRecordDate(value) {
+        var date = new Date(value)
+        if (isNaN(date.getTime())) return String(value || '')
+        var pad = function (number) { return String(number).padStart(2, '0') }
+        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds())
+      }
+      function recordFileName(file) {
+        return formatRecordDate(file.startTime).slice(11) + ' - ' + formatRecordDate(file.endTime).slice(11)
+      }
+      function recordIdentity(slot) {
+        var data = slot && slot.node ? slot.node.data : {}
+        return {
+          deviceId: data.parentDeviceId || data.gbParentDeviceId || data.parentIdForDevice || '',
+          channelId: data.deviceId || data.gbDeviceId || data.channelDeviceId || ''
+        }
+      }
+      function requestPlaybackCommand(path, timeout) {
+        return $.ajax({
+          url: API_BASE + path,
+          method: 'GET',
+          dataType: 'text',
+          timeout: timeout || 15000,
+          headers: { 'access-token': token }
+        })
+      }
+      function destroyRecordPlayer() {
+        if (!recordPlayback.player) return
+        try { recordPlayback.player.pause() } catch (error) {}
+        try { recordPlayback.player.clearView() } catch (error) {}
+        try { recordPlayback.player.destroy() } catch (error) {}
+        recordPlayback.player = null
+        $('#recordPlayerContainer').empty()
+      }
+      function createRecordPlayer() {
+        if (recordPlayback.player) return recordPlayback.player
+        if (!window.Jessibuca) throw new Error('未加载 jessibuca.js，无法回放录像')
+        recordPlayback.player = new window.Jessibuca({
+          container: $('#recordPlayerContainer')[0],
+          videoBuffer: 0,
+          isResize: true,
+          useMSE: false,
+          useWCS: false,
+          text: '',
+          controlAutoHide: false,
+          debug: false,
+          hotKey: true,
+          decoder: 'static/js/jessibuca/decoder.js',
+          isNotMute: false,
+          timeout: 10,
+          recordType: 'mp4',
+          isFlv: false,
+          forceNoOffscreen: true,
+          hasAudio: true,
+          heartTimeout: 5,
+          heartTimeoutReplay: true,
+          heartTimeoutReplayTimes: 3,
+          hiddenAutoPause: false,
+          isFullResize: false,
+          keepScreenOn: true,
+          loadingText: '请稍等, 视频加载中......',
+          loadingTimeout: 10,
+          loadingTimeoutReplay: true,
+          loadingTimeoutReplayTimes: 3,
+          openWebglAlignment: false,
+          operateBtns: { fullscreen: true, screenshot: true, play: true, audio: true, recorder: false },
+          showBandwidth: true,
+          supportDblclickFullscreen: false,
+          useWebFullSreen: true,
+          wasmDecodeErrorReplay: true,
+          wcsUseVideoRendcer: true
+        })
+        recordPlayback.player.on('play', function () {
+          setRecordState('回放中', 'success')
+          hideRecordPlaceholder()
+        })
+        recordPlayback.player.on('pause', function () { setRecordState('已暂停') })
+        recordPlayback.player.on('error', function (message) {
+          setRecordState('回放失败', 'error')
+          setRecordPlaceholder('Jessibuca 错误：' + message, true)
+          log('录像 Jessibuca error: ' + message, 'error')
+        })
+        recordPlayback.player.on('timeout', function (message) {
+          setRecordState('连接超时', 'error')
+          setRecordPlaceholder('录像 ws-flv 连接超时', true)
+          log('录像回放超时：' + message, 'error')
+        })
+        recordPlayback.player.on('loadingTimeout', function (message) { log('录像 loadingTimeout：' + message, 'error') })
+        return recordPlayback.player
+      }
+      function setRecordControls(enabled) {
+        $('#recordPrev, #recordPause, #recordNext, #recordStop, #recordScreenshot, #recordDownloadCurrent').prop('disabled', !enabled)
+        if (!enabled) $('#recordPause').text('暂停')
+      }
+      function renderRecordTimeline() {
+        var $timeline = $('#recordTimeline').empty()
+        if (!recordPlayback.files.length) {
+          $timeline.append($('<div>', { 'class': 'record-timeline-empty', text: '查询录像后显示时间轴' }))
+          return
+        }
+        var start = Math.min.apply(null, recordPlayback.files.map(function (file) { return new Date(file.startTime).getTime() }))
+        var end = Math.max.apply(null, recordPlayback.files.map(function (file) { return new Date(file.endTime).getTime() }))
+        var total = Math.max(end - start, 1)
+        $.each(recordPlayback.files, function (index, file) {
+          var fileStart = new Date(file.startTime).getTime()
+          var fileEnd = new Date(file.endTime).getTime()
+          var left = Math.max(0, (fileStart - start) / total * 100)
+          var width = Math.max(0.5, (fileEnd - fileStart) / total * 100)
+          $('<div>', { 'class': 'record-segment', title: recordFileName(file), 'data-index': index })
+            .css({ left: left + '%', width: width + '%' })
+            .on('click', function () { playRecordFile(index) })
+            .appendTo($timeline)
+        })
+      }
+      function renderRecordFiles() {
+        var $list = $('#recordList').empty()
+        $('#recordListTitle').text('录像文件（' + recordPlayback.files.length + '）')
+        if (!recordPlayback.files.length) {
+          $list.append($('<li>', { 'class': 'record-empty', text: '当天没有录像' }))
+          renderRecordTimeline()
+          return
+        }
+        $.each(recordPlayback.files, function (index, file) {
+          var $item = $('<li>', { 'class': 'record-list-item' })
+          $('<button>', { type: 'button', text: recordFileName(file), title: recordFileName(file) })
+            .on('click', function () { playRecordFile(index) }).appendTo($item)
+          $('<button>', { type: 'button', 'class': 'record-download', title: '下载录像', text: '↓' })
+            .on('click', function (event) { event.stopPropagation(); startRecordDownload(file) }).appendTo($item)
+          $item.appendTo($list)
+        })
+        renderRecordTimeline()
+      }
+      function markRecordFile(index) {
+        $('#recordList button:not(.record-download)').removeClass('active')
+        $('#recordList li').eq(index).find('button:not(.record-download)').addClass('active')
+        $('#recordTimeline .record-segment').removeClass('active').filter('[data-index="' + index + '"]').addClass('active')
+      }
+      function ensureRecordIdentity(slot) {
+        var identity = recordIdentity(slot)
+        if (identity.deviceId && identity.channelId) return $.Deferred().resolve(identity).promise()
+        return requestJson('/api/common/channel/one', {
+          data: { id: slot.channelId }, headers: { 'access-token': token }, timeout: 15000
+        }).then(function (detail) {
+          slot.node.data = $.extend({}, slot.node.data, detail)
+          identity = recordIdentity(slot)
+          if (!identity.deviceId || !identity.channelId) throw new Error('通道详情缺少设备国标编号或通道国标编号')
+          return identity
+        })
+      }
+      function queryRecordFiles() {
+        if (!recordPlayback.slot) return
+        var date = $('#recordDate').val()
+        if (!date) { setRecordState('请选择日期', 'error'); return }
+        var identity = { deviceId: recordPlayback.deviceId, channelId: recordPlayback.channelId }
+        var requestId = ++recordPlayback.requestId
+        var startTime = date + ' 00:00:00'
+        var endTime = date + ' 23:59:59'
+        recordPlayback.files = []
+        recordPlayback.fileIndex = -1
+        renderRecordFiles()
+        setRecordState('正在查询录像…', 'loading')
+        setRecordPlaceholder('正在向设备查询录像，请稍候…')
+        log('GET /api/gb_record/query/' + identity.deviceId + '/' + identity.channelId + ' ' + startTime + ' - ' + endTime)
+        stopRecordPlayback().always(function () {
+          if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
+          requestJson('/api/gb_record/query/' + encodeURIComponent(identity.deviceId) + '/' + encodeURIComponent(identity.channelId), {
+            data: { startTime: startTime, endTime: endTime }, headers: { 'access-token': token }, timeout: 60000
+          }).then(function (data) {
+            if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
+            recordPlayback.files = Array.isArray(data && data.recordList) ? data.recordList : []
+            renderRecordFiles()
+            setRecordState('查询完成', 'success')
+            log('录像查询完成，共 ' + recordPlayback.files.length + ' 段', 'success')
+          }).catch(function (error) {
+            if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
+            var message = error && error.message ? error.message : '录像查询失败'
+            setRecordState('查询失败', 'error')
+            $('#recordList').empty().append($('<li>', { 'class': 'record-error', text: message }))
+            log(message, 'error')
+          })
+        })
+      }
+      function stopRecordPlayback() {
+        var stream = recordPlayback.stream
+        var deviceId = recordPlayback.deviceId
+        var channelId = recordPlayback.channelId
+        var stopPromise = $.Deferred().resolve().promise()
+        if (stream && deviceId && channelId) {
+          log('GET /api/playback/stop/' + deviceId + '/' + channelId + '/' + stream)
+          stopPromise = requestPlaybackCommand('/api/playback/stop/' + encodeURIComponent(deviceId) + '/' + encodeURIComponent(channelId) + '/' + encodeURIComponent(stream), 15000)
+            .fail(function (xhr) { log(formatError(xhr, '停止录像回放失败'), 'error') })
+        }
+        destroyRecordPlayer()
+        recordPlayback.streamInfo = null
+        recordPlayback.stream = ''
+        $('#recordSeek').prop({ disabled: true, min: 0, max: 0, value: 0 })
+        $('#recordTimeLabel').text('未播放')
+        setRecordControls(false)
+        return stopPromise
+      }
+      function playRecordFile(index) {
+        if (!recordPlayback.files[index]) return
+        var file = recordPlayback.files[index]
+        var requestId = ++recordPlayback.requestId
+        recordPlayback.fileIndex = index
+        markRecordFile(index)
+        $('#recordTitle').text(recordFileName(file))
+        var duration = Math.max(0, Math.round((new Date(file.endTime).getTime() - new Date(file.startTime).getTime()) / 1000))
+        $('#recordTimeLabel').text(formatRecordDate(file.startTime))
+        setRecordState('正在请求回放…', 'loading')
+        setRecordPlaceholder('正在请求录像回放流…')
+        stopRecordPlayback().always(function () {
+          if (requestId !== recordPlayback.requestId) return
+          $('#recordSeek').prop({ disabled: false, min: 0, max: duration, value: 0 })
+          requestJson('/api/playback/start/' + encodeURIComponent(recordPlayback.deviceId) + '/' + encodeURIComponent(recordPlayback.channelId), {
+            data: { startTime: file.startTime, endTime: file.endTime }, headers: { 'access-token': token }, timeout: 60000
+          }).then(function (streamContent) {
+            if (requestId !== recordPlayback.requestId) return
+            recordPlayback.streamInfo = streamContent
+            recordPlayback.stream = streamContent && streamContent.stream ? streamContent.stream : ''
+            var info = (streamContent && streamContent.transcodeStream) || streamContent
+            var wsUrl = getWsFlvUrl(info)
+            if (!wsUrl) throw new Error('回放接口未返回 ws_flv/wss_flv 地址')
+            var player = createRecordPlayer()
+            player.play(wsUrl)
+            setRecordControls(true)
+            setRecordState('正在连接…', 'loading')
+            log('收到录像 ws-flv 地址：' + wsUrl)
+          }).catch(function (error) {
+            if (requestId !== recordPlayback.requestId) return
+            var message = error && error.message ? error.message : '录像回放失败'
+            setRecordState('回放失败', 'error')
+            setRecordPlaceholder(message, true)
+            log(message, 'error')
+          })
+        })
+      }
+      function openRecordPanel(slot) {
+        if (!slot || !slot.node) return
+        if (Number(slot.node.data.dataType) !== 1 && slot.node.data.dataType !== undefined) {
+          log('当前通道不是 GB28181 通道，暂不支持国标录像', 'error')
+          return
+        }
+        if ($('#detailModal').hasClass('visible')) closeDetail()
+        selectSlot(slot)
+        var requestId = ++recordPlayback.requestId
+        recordPlayback.slot = slot
+        recordPlayback.files = []
+        recordPlayback.fileIndex = -1
+        $('#recordDate').val(new Date().toISOString().slice(0, 10))
+        $('#recordChannel').text(nodeLabel(slot.node.data))
+        $('#recordIds').text('正在读取通道编号…')
+        $('#recordTitle').text('未选择录像')
+        $('#recordDownloadState').text('')
+        setRecordState('准备查询', 'loading')
+        setRecordPlaceholder('正在读取通道信息…')
+        renderRecordFiles()
+        $('#recordModal').addClass('visible')
+        ensureRecordIdentity(slot).then(function (identity) {
+          if (recordPlayback.slot !== slot || requestId !== recordPlayback.requestId) return
+          recordPlayback.deviceId = identity.deviceId
+          recordPlayback.channelId = identity.channelId
+          $('#recordIds').text('设备：' + identity.deviceId + '｜通道：' + identity.channelId)
+          queryRecordFiles()
+        }).catch(function (error) {
+          if (recordPlayback.slot !== slot || requestId !== recordPlayback.requestId) return
+          var message = error && error.message ? error.message : '读取通道信息失败'
+          setRecordState('打开失败', 'error')
+          setRecordPlaceholder(message, true)
+          log(message, 'error')
+        })
+        $('#recordClose').focus()
+      }
+      function closeRecordPanel() {
+        recordPlayback.requestId += 1
+        stopRecordDownload()
+        stopRecordPlayback()
+        $('#recordModal').removeClass('visible')
+        recordPlayback.slot = null
+        recordPlayback.files = []
+        recordPlayback.fileIndex = -1
+        recordPlayback.deviceId = ''
+        recordPlayback.channelId = ''
+        $('#recordDownloadState').text('')
+      }
+      function toggleRecordPause() {
+        if (!recordPlayback.player || !recordPlayback.stream) return
+        var command = $('#recordPause').text() === '暂停' ? 'pause' : 'resume'
+        requestPlaybackCommand('/api/playback/' + command + '/' + encodeURIComponent(recordPlayback.stream), 15000)
+          .fail(function (xhr) { log(formatError(xhr, '录像' + command + '失败'), 'error') })
+        if (command === 'pause') {
+          try { recordPlayback.player.pause() } catch (error) {}
+          $('#recordPause').text('继续')
+        } else {
+          try {
+            if (recordPlayback.player.unPause) recordPlayback.player.unPause()
+            else recordPlayback.player.play(getWsFlvUrl((recordPlayback.streamInfo && recordPlayback.streamInfo.transcodeStream) || recordPlayback.streamInfo))
+          } catch (error) {}
+          $('#recordPause').text('暂停')
+          setRecordState('回放中', 'success')
+        }
+      }
+      function changeRecordSpeed(speed) {
+        if (!recordPlayback.stream) return
+        requestPlaybackCommand('/api/playback/speed/' + encodeURIComponent(recordPlayback.stream) + '/' + encodeURIComponent(speed), 15000)
+          .done(function () {
+            if (recordPlayback.player && recordPlayback.player.setPlaybackRate) recordPlayback.player.setPlaybackRate(Number(speed))
+            log('录像回放倍速：' + speed + 'x', 'success')
+          }).fail(function (xhr) { log(formatError(xhr, '设置录像倍速失败'), 'error') })
+      }
+      function seekRecord(seconds) {
+        if (!recordPlayback.stream) return
+        requestPlaybackCommand('/api/playback/seek/' + encodeURIComponent(recordPlayback.stream) + '/' + encodeURIComponent(seconds), 15000)
+          .fail(function (xhr) { log(formatError(xhr, '录像拖动失败'), 'error') })
+      }
+      function triggerRecordDownload(path) {
+        if (!path) return
+        var link = document.createElement('a')
+        link.href = path
+        link.target = '_blank'
+        link.download = (recordPlayback.deviceId || 'record') + '-' + (recordPlayback.channelId || 'channel') + '.mp4'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+      function stopRecordDownload() {
+        var info = recordPlayback.downloadInfo
+        if (recordPlayback.downloadTimer) {
+          window.clearTimeout(recordPlayback.downloadTimer)
+          recordPlayback.downloadTimer = null
+        }
+        recordPlayback.downloadInfo = null
+        if (!info || !info.stream) return $.Deferred().resolve().promise()
+        log('GET /api/gb_record/download/stop/' + info.deviceId + '/' + info.channelId + '/' + info.stream)
+        return requestPlaybackCommand('/api/gb_record/download/stop/' + encodeURIComponent(info.deviceId) + '/' + encodeURIComponent(info.channelId) + '/' + encodeURIComponent(info.stream), 15000)
+          .done(function () { log('已停止录像下载', 'success') })
+          .fail(function (xhr) { log(formatError(xhr, '停止录像下载失败'), 'error') })
+      }
+      function pollRecordDownload() {
+        var info = recordPlayback.downloadInfo
+        if (!info || !info.stream) return
+        requestJson('/api/gb_record/download/progress/' + encodeURIComponent(info.deviceId) + '/' + encodeURIComponent(info.channelId) + '/' + encodeURIComponent(info.stream), {
+          headers: { 'access-token': token }, timeout: 15000
+        }).then(function (data) {
+          if (recordPlayback.downloadInfo !== info) return
+          var progress = Number(data && data.progress || 0)
+          $('#recordDownloadState').text('下载进度：' + (progress * 100).toFixed(1) + '%')
+          var pathInfo = data && data.downLoadFilePath
+          if (pathInfo) {
+            var path = window.location.protocol === 'https:' ? (pathInfo.httpsPath || pathInfo.httpPath) : (pathInfo.httpPath || pathInfo.httpsPath)
+            $('#recordDownloadState').text('下载完成，正在打开文件')
+            triggerRecordDownload(path)
+            recordPlayback.downloadInfo = null
+            return
+          }
+          recordPlayback.downloadTimer = window.setTimeout(pollRecordDownload, 5000)
+        }).catch(function (error) {
+          if (recordPlayback.downloadInfo !== info) return
+          $('#recordDownloadState').text('下载进度查询失败：' + (error.message || error))
+        })
+      }
+      function startRecordDownload(file) {
+        if (!file || !recordPlayback.deviceId || !recordPlayback.channelId) return
+        var speed = 4
+        var requestId = recordPlayback.requestId
+        $('#recordDownloadState').text('正在请求录像下载…')
+        stopRecordDownload().always(function () {
+          if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
+          stopRecordPlayback().always(function () {
+            if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
+            requestJson('/api/gb_record/download/start/' + encodeURIComponent(recordPlayback.deviceId) + '/' + encodeURIComponent(recordPlayback.channelId), {
+              data: { startTime: file.startTime, endTime: file.endTime, downloadSpeed: speed }, headers: { 'access-token': token }, timeout: 60000
+            }).then(function (data) {
+              if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
+              recordPlayback.downloadInfo = { deviceId: recordPlayback.deviceId, channelId: recordPlayback.channelId, stream: data && data.stream }
+              if (!recordPlayback.downloadInfo.stream) throw new Error('下载接口未返回流 ID')
+              pollRecordDownload()
+            }).catch(function (error) {
+              if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
+              $('#recordDownloadState').text('下载失败：' + (error.message || error))
+              log('录像下载失败：' + (error.message || error), 'error')
+            })
+          })
+        })
+      }
+
       function startPlayback(slot, node, requestId) {
         var channelId = nodeChannelId(node.data)
         if (channelId === '') throw new Error('通道缺少数据库 ID，无法调用播放接口')
@@ -1255,6 +1773,7 @@
         var stopPromise = stopSlot(slot, false)
         slot.node = node
         slot.channelId = channelId
+        slot.$slot.addClass('has-channel')
         slot.$name.text(nodeLabel(data))
         slot.placeholder = '准备播放…'
         setSlotState(slot, '准备播放', 'loading')
@@ -1283,6 +1802,7 @@
       }
 
       function stopAllPlayback() {
+        closeRecordPanel()
         var slots = gridSlots.slice()
         $.each(slots, function (_, slot) { stopSlot(slot, true) })
         activeSlot = null
@@ -1325,7 +1845,36 @@
       $('#detailModal').on('click', function (event) {
         if (event.target === this) closeDetail()
       })
+      $('#recordClose').on('click', closeRecordPanel)
+      $('#recordQueryButton').on('click', queryRecordFiles)
+      $('#recordPrev').on('click', function () {
+        if (recordPlayback.fileIndex > 0) playRecordFile(recordPlayback.fileIndex - 1)
+      })
+      $('#recordNext').on('click', function () {
+        if (recordPlayback.fileIndex < recordPlayback.files.length - 1) playRecordFile(recordPlayback.fileIndex + 1)
+      })
+      $('#recordPause').on('click', toggleRecordPause)
+      $('#recordStop').on('click', function () {
+        recordPlayback.requestId += 1
+        stopRecordPlayback().always(function () {
+          setRecordState('已停止')
+          setRecordPlaceholder('请选择左侧录像文件开始回放')
+        })
+      })
+      $('#recordScreenshot').on('click', function () {
+        if (recordPlayback.player && recordPlayback.player.screenshot) recordPlayback.player.screenshot()
+      })
+      $('#recordSpeed').on('change', function () { changeRecordSpeed($(this).val()) })
+      $('#recordSeek').on('change', function () { seekRecord($(this).val()) })
+      $('#recordDownloadCurrent').on('click', function () {
+        if (recordPlayback.fileIndex >= 0) startRecordDownload(recordPlayback.files[recordPlayback.fileIndex])
+      })
+      $('#recordModal').on('click', function (event) {
+        if (event.target === this) closeRecordPanel()
+      })
       $(window).on('beforeunload', function () {
+        stopRecordDownload()
+        stopRecordPlayback()
         $.each(gridSlots, function (_, slot) {
           if (slot.player) { try { slot.player.destroy() } catch (e) {} }
         })
