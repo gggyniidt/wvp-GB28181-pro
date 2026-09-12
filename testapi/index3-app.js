@@ -65,7 +65,24 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
         $: $,
         recordFileName: recordFileName,
         onPlayFile: function (index) { playRecordFile(index) },
-        onDownloadFile: function (file) { startRecordDownload(file) }
+        onDownloadFile: function (file) { startRecordDownload(file) },
+        onDownloadRange: function (range) { startRecordDownload(range) },
+        onTimelineSelect: function (payload) {
+          if (!payload) return
+          if (payload.index >= 0 && payload.index !== recordPlayback.fileIndex) {
+            playRecordFile(payload.index)
+            return
+          }
+          seekRecord(payload.seconds)
+        },
+        onPlayerChange: function (playerKey) {
+          if (playerKey !== 'jessibuca') {
+            log('当前独立页面仅加载 Jessibuca 录像播放器，' + playerKey + ' 入口已保留但未加载 Vue 播放器运行时', 'error')
+            recordPanel.setPlayerLabel('Jessibuca')
+            return
+          }
+          recordPanel.setPlayerLabel('Jessibuca')
+        }
       })
 
       $('#apiBaseText').text(API_BASE)
@@ -432,7 +449,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
           var channelId = nodeChannelId(node.data)
           $('#playerChannelName').text(nodeLabel(node.data))
           $('#playerChannelId').text('通道 ID：' + channelId + (nodeDeviceId(node.data) ? '｜设备：' + nodeDeviceId(node.data) : ''))
-          $('#stopButton').prop('disabled', false)
+          detailPanel.setPlayerStreamUrl('')
           $('#presetTags').empty().append($('<span>', { 'class': 'preset-empty', text: '请先查询预置位' }))
           updateControlState(node)
           loadChannelDetail(node)
@@ -440,7 +457,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
           ++controlDetailRequestSequence
           $('#playerChannelName').text('未选择通道')
           $('#playerChannelId').text('请选择左侧在线通道开始播放')
-          $('#stopButton').prop('disabled', true)
+          detailPanel.setPlayerStreamUrl('')
           $('#controlChannel').text('请选择在线通道')
           setControlEnabled(false)
         }
@@ -760,16 +777,24 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
         })
         recordPlayback.player.on('play', function () {
           setRecordState('回放中', 'success')
+          recordPanel.setLoading(false)
+          recordPanel.setPlaying(true)
           hideRecordPlaceholder()
         })
-        recordPlayback.player.on('pause', function () { setRecordState('已暂停') })
+        recordPlayback.player.on('pause', function () { setRecordState('已暂停'); recordPanel.setLoading(false); recordPanel.setPlaying(false) })
+        recordPlayback.player.on('timeUpdate', function (value) {
+          var file = recordPlayback.files[recordPlayback.fileIndex]
+          recordPanel.setCurrentTime(value, file && file.startTime)
+        })
         recordPlayback.player.on('error', function (message) {
           setRecordState('回放失败', 'error')
+          recordPanel.setLoading(false)
           setRecordPlaceholder('Jessibuca 错误：' + message, true)
           log('录像 Jessibuca error: ' + message, 'error')
         })
         recordPlayback.player.on('timeout', function (message) {
           setRecordState('连接超时', 'error')
+          recordPanel.setLoading(false)
           setRecordPlaceholder('录像 ws-flv 连接超时', true)
           log('录像回放超时：' + message, 'error')
         })
@@ -842,6 +867,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
         destroyRecordPlayer()
         recordPlayback.streamInfo = null
         recordPlayback.stream = ''
+        recordPanel.setLoading(false)
         $('#recordSeek').prop({ disabled: true, min: 0, max: 0, value: 0 })
         $('#recordTimeLabel').text('未播放')
         setRecordControls(false)
@@ -858,6 +884,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
         $('#recordTimeLabel').text(formatRecordDate(file.startTime))
         setRecordState('正在请求回放…', 'loading')
         setRecordPlaceholder('正在请求录像回放流…')
+        recordPanel.setLoading(true)
         stopRecordPlayback().always(function () {
           if (requestId !== recordPlayback.requestId) return
           $('#recordSeek').prop({ disabled: false, min: 0, max: duration, value: 0 })
@@ -871,12 +898,14 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
             var player = createRecordPlayer()
             player.play(wsUrl)
             setRecordControls(true)
+            recordPanel.setLoading(true)
             setRecordState('正在连接…', 'loading')
             log('收到录像 ws-flv 地址：' + wsUrl)
           }).catch(function (error) {
             if (requestId !== recordPlayback.requestId) return
             var message = error && error.message ? error.message : '录像回放失败'
             setRecordState('回放失败', 'error')
+            recordPanel.setLoading(false)
             setRecordPlaceholder(message, true)
             log(message, 'error')
           })
@@ -899,6 +928,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
         $('#recordIds').text('正在读取通道编号…')
         $('#recordTitle').text('未选择录像')
         $('#recordDownloadState').text('')
+        recordPanel.setPlayerList()
         setRecordState('准备查询', 'loading')
         setRecordPlaceholder('正在读取通道信息…')
         renderRecordFiles()
@@ -960,6 +990,24 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
         wvp.seekPlayback(recordPlayback.stream, seconds, 15000)
           .fail(function (xhr) { log(formatError(xhr, '录像拖动失败'), 'error') })
       }
+      function seekRecordRelative(delta) {
+        var current = Number($('#recordSeek').val() || 0)
+        var max = Number($('#recordSeek').attr('max') || 0)
+        seekRecord(Math.max(0, Math.min(max || Infinity, current + delta)))
+      }
+      function toggleRecordFullscreen() {
+        recordPanel.setFullscreen(!$('#recordPlayerBox').hasClass('record-player-box-fullscreen'))
+      }
+      function downloadRecordRange() {
+        var files = recordPlayback.files || []
+        var start = files.length ? files[0].startTime : new Date()
+        var end = files.length ? files[files.length - 1].endTime : new Date(Date.now() + 3600000)
+        recordPanel.openDownloadRange(start, end)
+      }
+      function confirmRecordRange(startTime, endTime) {
+        recordPanel.closeDownloadRange()
+        startRecordDownload({ startTime: startTime, endTime: endTime })
+      }
       function triggerRecordDownload(path) {
         if (!path) return
         var link = document.createElement('a')
@@ -990,18 +1038,22 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
           if (recordPlayback.downloadInfo !== info) return
           var progress = Number(data && data.progress || 0)
           $('#recordDownloadState').text('下载进度：' + (progress * 100).toFixed(1) + '%')
+          recordPanel.setDownloadState('下载进度：' + (progress * 100).toFixed(1) + '%')
           var pathInfo = data && data.downLoadFilePath
           if (pathInfo) {
             var path = window.location.protocol === 'https:' ? (pathInfo.httpsPath || pathInfo.httpPath) : (pathInfo.httpPath || pathInfo.httpsPath)
             $('#recordDownloadState').text('下载完成，正在打开文件')
+            recordPanel.setDownloadState('下载完成，正在打开文件')
             triggerRecordDownload(path)
             recordPlayback.downloadInfo = null
+            window.setTimeout(function () { recordPanel.closeDownloadDialog() }, 800)
             return
           }
           recordPlayback.downloadTimer = window.setTimeout(pollRecordDownload, 5000)
         }).catch(function (error) {
           if (recordPlayback.downloadInfo !== info) return
           $('#recordDownloadState').text('下载进度查询失败：' + (error.message || error))
+          recordPanel.setDownloadState('下载进度查询失败：' + (error.message || error))
         })
       }
       function startRecordDownload(file) {
@@ -1009,6 +1061,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
         var speed = 4
         var requestId = recordPlayback.requestId
         $('#recordDownloadState').text('正在请求录像下载…')
+        recordPanel.openDownloadDialog('正在请求录像下载…')
         stopRecordDownload().always(function () {
           if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
           stopRecordPlayback().always(function () {
@@ -1019,10 +1072,13 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
               if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
               recordPlayback.downloadInfo = { deviceId: recordPlayback.deviceId, channelId: recordPlayback.channelId, stream: data && data.stream }
               if (!recordPlayback.downloadInfo.stream) throw new Error('下载接口未返回流 ID')
+              recordPanel.setDownloadState('录像下载已开始，正在生成文件…')
               pollRecordDownload()
             }).catch(function (error) {
               if (requestId !== recordPlayback.requestId || !recordPlayback.slot) return
               $('#recordDownloadState').text('下载失败：' + (error.message || error))
+              recordPanel.setDownloadState('下载失败：' + (error.message || error))
+              recordPanel.closeDownloadDialog()
               log('录像下载失败：' + (error.message || error), 'error')
             })
           })
@@ -1046,7 +1102,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
           slot.wsUrl = wsUrl
           if (activeSlot === slot) {
             currentChannelId = channelId
-            $('#playerChannelId').text('通道 ID：' + channelId + '｜ws-flv：' + wsUrl)
+            detailPanel.setPlayerStreamUrl(wsUrl)
           }
           log('收到 ws-flv 地址：' + wsUrl)
           try {
@@ -1176,7 +1232,7 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
             recordPlayback.requestId += 1
             stopRecordPlayback().always(function () {
               setRecordState('已停止')
-              setRecordPlaceholder('请选择左侧录像文件开始回放')
+              setRecordPlaceholder('请选择右侧录像文件开始回放')
             })
           },
           screenshot: function () {
@@ -1184,6 +1240,25 @@ import { createRecordPanel, mountRecordPanel } from './components/record-panel/r
           },
           changeSpeed: changeRecordSpeed,
           seek: seekRecord,
+          seekRelative: seekRecordRelative,
+          downloadRange: downloadRecordRange,
+          fullscreen: toggleRecordFullscreen,
+          closeRange: function () { recordPanel.closeDownloadRange() },
+          confirmRange: confirmRecordRange,
+          rangeError: function (message) { setRecordState(message, 'error') },
+          cancelDownload: function () { stopRecordDownload(); recordPanel.closeDownloadDialog() },
+          timelinePayload: function (clientX) { return recordPanel.getTimelinePayload(clientX) },
+          timelineSelect: function (payload) {
+            if (!payload) return
+            if (payload.index >= 0 && payload.index !== recordPlayback.fileIndex) return playRecordFile(payload.index)
+            var file = recordPlayback.files[recordPlayback.fileIndex]
+            var baseTime = file && new Date(file.startTime).getTime()
+            var seconds = baseTime && isFinite(baseTime)
+              ? (payload.timestamp - baseTime) / 1000
+              : payload.seconds
+            seekRecord(Math.max(0, seconds))
+          },
+          redrawTimeline: function () { recordPanel.renderTimeline(recordPlayback.files) },
           downloadCurrent: function () {
             if (recordPlayback.fileIndex >= 0) startRecordDownload(recordPlayback.files[recordPlayback.fileIndex])
           }

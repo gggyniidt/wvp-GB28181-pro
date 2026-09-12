@@ -6,6 +6,10 @@ export function createDetailPanel(options) {
     $('#playerState').removeClass('success error loading').addClass(type || '').text(message)
   }
 
+  function setPlayerStreamUrl(url) {
+    $('#playerStreamUrl').text(url ? '流地址：' + url : '流地址：未获取')
+  }
+
   function setPlayerPlaceholder(message, isError) {
     $('#playerPlaceholder').text(message).toggleClass('error', Boolean(isError)).show()
   }
@@ -27,8 +31,11 @@ export function createDetailPanel(options) {
     $('#playerStage').append(slot.$container)
     slot.$placeholder.hide()
     setPlayerState(state || '未播放', stateType)
+    setPlayerStreamUrl(slot.wsUrl)
     if (isPlaying) hidePlayerPlaceholder()
     else setPlayerPlaceholder(placeholder || '等待添加通道', stateType === 'error')
+    $('#detailModal .detail-dialog').removeClass('ctrl-collapsed')
+    $('#detailCtrlToggle').attr('aria-expanded', 'true').attr('title', '收起通道控制').text('‹')
     $('#detailModal').addClass('visible')
     $('#detailClose').focus()
   }
@@ -38,11 +45,14 @@ export function createDetailPanel(options) {
       slot.$container.appendTo(slot.$slot)
       if (slot.$placeholder) slot.$placeholder.toggle(!isPlaying)
     }
+    $('#detailModal .detail-dialog').removeClass('ctrl-collapsed')
+    $('#detailCtrlToggle').attr('aria-expanded', 'true').attr('title', '收起通道控制').text('‹')
     $('#detailModal').removeClass('visible')
   }
 
   return {
     setPlayerState: setPlayerState,
+    setPlayerStreamUrl: setPlayerStreamUrl,
     setPlayerPlaceholder: setPlayerPlaceholder,
     hidePlayerPlaceholder: hidePlayerPlaceholder,
     setControlEnabled: setControlEnabled,
@@ -62,8 +72,11 @@ export function mountDetailPanel(options) {
     handlers.push(function () { $(selector).off(event, handler) })
   }
 
-  bind('#stopButton', 'click', function () { controller.stop() })
   bind('#detailClose', 'click', function () { controller.close() })
+  bind('#detailCtrlToggle', 'click', function () {
+    var collapsed = $('#detailModal .detail-dialog').toggleClass('ctrl-collapsed').hasClass('ctrl-collapsed')
+    $('#detailCtrlToggle').attr('aria-expanded', String(!collapsed)).attr('title', collapsed ? '展开通道控制' : '收起通道控制').text(collapsed ? '›' : '‹')
+  })
   bind('#detailModal', 'click', function (event) {
     if (event.target === this) controller.close()
   })
@@ -87,6 +100,7 @@ export function defineDetailPanelElement() {
                 <div>
                   <h2 id="playerChannelName">未选择通道</h2>
                   <p id="playerChannelId">请选择左侧在线通道开始播放</p>
+                  <p id="playerStreamUrl">流地址：未获取</p>
                 </div>
               </div>
               <div class="player-stage" id="playerStage">
@@ -96,11 +110,8 @@ export function defineDetailPanelElement() {
                   <div id="dragRect" class="drag-rect" style="display:none"></div>
                 </div>
               </div>
-              <div class="player-toolbar">
-                <button id="stopButton" class="primary" type="button" disabled>停止播放</button>
-                <span id="playerState" class="player-state">未播放</span>
-              </div>
             </section>
+            <button id="detailCtrlToggle" class="ctrl-toggle-edge" type="button" aria-controls="ctrlPanel" aria-expanded="true" title="收起通道控制">‹</button>
             <aside id="ctrlPanel" class="ctrl-panel" aria-label="通道控制">
               <div class="ctrl-inner">
                 <div class="ctrl-header">
