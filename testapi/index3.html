@@ -94,7 +94,7 @@
     .grid-toolbar label { font-size: 13px; }
     .grid-toolbar select { min-height: 30px; padding: 3px 8px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; color: #e2e8f0; }
     .grid-hint { margin-left: auto; color: #94a3b8; font-size: 12px; }
-    .video-grid { flex: 1; min-height: 0; display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+    .video-grid { position: relative; z-index: 0; isolation: isolate; flex: 1; min-height: 0; display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); }
     .video-grid.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); }
     .video-grid.grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(5, minmax(0, 1fr)); }
     .video-slot { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #334155; border-radius: 5px; background: #000; cursor: pointer; }
@@ -1028,6 +1028,17 @@
         currentChannelId = slot.channelId
         if (slot.state) setPlayerState(slot.state, slot.stateType)
       }
+      function resizeSlotPlayer(slot) {
+        if (!slot || !slot.player || !slot.player.resize) return
+        var resize = function () {
+          try { slot.player.resize() } catch (error) { console.warn('恢复 Jessibuca 尺寸失败', error) }
+        }
+        if (window.requestAnimationFrame) {
+          window.requestAnimationFrame(function () { window.requestAnimationFrame(resize) })
+        } else {
+          setTimeout(resize, 0)
+        }
+      }
       function openDetail(slot) {
         selectSlot(slot)
         $('#playerStage').append(slot.$container)
@@ -1037,14 +1048,16 @@
         else setPlayerPlaceholder(slot.placeholder || '等待添加通道', slot.stateType === 'error')
         $('#detailModal').addClass('visible')
         $('#detailClose').focus()
-        if (slot.player && slot.player.resize) { setTimeout(function () { slot.player.resize() }, 0) }
+        resizeSlotPlayer(slot)
       }
       function closeDetail() {
         if (!activeSlot) { $('#detailModal').removeClass('visible'); return }
-        activeSlot.$container.appendTo(activeSlot.$slot)
-        if (activeSlot.$placeholder) activeSlot.$placeholder.toggle(!activeSlot.playing)
+        var slot = activeSlot
+        slot.$container.appendTo(slot.$slot)
+        if (slot.$placeholder) slot.$placeholder.toggle(!slot.playing)
         $('#detailModal').removeClass('visible')
         exitDragZoom()
+        resizeSlotPlayer(slot)
       }
 
       function stopSlot(slot, remove) {
