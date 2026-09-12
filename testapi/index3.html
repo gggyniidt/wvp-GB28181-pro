@@ -75,7 +75,7 @@
     .api-text { color: var(--muted); font-size: 12px; }
     .api-text code { padding: 1px 5px; border-radius: 3px; background: #f1f5f9; }
 
-    /* ===== 三栏工作区 ===== */
+    /* ===== 工作区 ===== */
     .workspace {
       position: fixed;
       top: 48px; left: 0; right: 0; bottom: 0;
@@ -89,14 +89,30 @@
       background: var(--panel);
       border-right: 1px solid var(--border);
     }
-    .player-panel {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      padding: 12px;
-      background: #1e1e1e;
-    }
+    .grid-panel { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 12px; background: #1e1e1e; }
+    .grid-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #cbd5e1; }
+    .grid-toolbar label { font-size: 13px; }
+    .grid-toolbar select { min-height: 30px; padding: 3px 8px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; color: #e2e8f0; }
+    .grid-hint { margin-left: auto; color: #94a3b8; font-size: 12px; }
+    .video-grid { flex: 1; min-height: 0; display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+    .video-grid.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); }
+    .video-grid.grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(5, minmax(0, 1fr)); }
+    .video-slot { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #334155; border-radius: 5px; background: #000; cursor: pointer; }
+    .video-slot:hover { border-color: var(--primary); }
+    .video-slot.selected { border: 2px solid var(--primary); box-shadow: 0 0 0 1px rgba(64,158,255,0.35); }
+    .slot-container { position: absolute; inset: 0; background: #000; }
+    .slot-container video { width: 100%; height: 100%; object-fit: contain; }
+    .slot-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 10px; color: #64748b; text-align: center; font-size: 12px; pointer-events: none; }
+    .slot-placeholder.error { color: #fca5a5; }
+    .slot-label { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 5px 7px; background: linear-gradient(transparent, rgba(0,0,0,0.85)); color: #f8fafc; font-size: 12px; pointer-events: none; }
+    .slot-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slot-index { color: #93c5fd; font-weight: 600; }
+    .slot-status { margin-left: auto; color: #94a3b8; }
+    .slot-status.success { color: #86efac; }
+    .slot-status.error { color: #fca5a5; }
+    .slot-remove { position: absolute; top: 5px; right: 5px; z-index: 3; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: rgba(15,23,42,0.75); color: #e2e8f0; cursor: pointer; opacity: 0; transition: opacity 0.15s ease; }
+    .video-slot:hover .slot-remove { opacity: 1; }
+    .slot-remove:hover { background: var(--danger); color: #fff; }
     .ctrl-panel {
       width: var(--ctrl-width);
       flex: none;
@@ -110,20 +126,15 @@
     .ctrl-panel.collapsed { width: 0; border-left: 0; }
     .ctrl-inner { width: calc(var(--ctrl-width) - 1px); display: flex; flex-direction: column; height: 100%; }
 
-    /* 收起/展开按钮 */
-    .ctrl-toggle {
-      position: fixed;
-      top: 60px;
-      right: var(--ctrl-width);
-      z-index: 11;
-      width: 26px; height: 60px;
-      padding: 0;
-      border-radius: 6px 0 0 6px;
-      border-right: 0;
-      font-size: 14px;
-      transition: right 0.2s ease;
-    }
-    .ctrl-toggle.collapsed { right: 0; }
+    /* ===== 详情面板 ===== */
+    .detail-modal { position: absolute; inset: 0; z-index: 20; display: none; background: #1e1e1e; }
+    .detail-modal.visible { display: flex; }
+    .detail-dialog { display: flex; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: var(--panel); }
+    .detail-dialog .player-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 12px; background: #1e1e1e; }
+    .detail-dialog .ctrl-panel { width: var(--ctrl-width); flex: none; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--border); overflow: hidden; }
+    .detail-dialog .ctrl-inner { width: 100%; }
+    .detail-close { position: absolute; top: 18px; right: 18px; z-index: 21; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: rgba(15,23,42,0.72); color: #fff; cursor: pointer; font-size: 20px; line-height: 1; }
+    .detail-close:hover { background: var(--danger); }
 
     /* ===== 播放器 ===== */
     .player-title { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; color: #e5e7eb; }
@@ -140,7 +151,6 @@
       border-radius: 6px;
       background: #000;
     }
-    #jessibucaContainer { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
     .player-placeholder {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
@@ -296,7 +306,23 @@
       <ul id="treeRoot" class="tree" aria-label="分组和通道树"></ul>
     </div>
 
-    <!-- 中：播放器 -->
+    <!-- 中：宫格播放器 -->
+    <section class="grid-panel" aria-label="多路视频宫格">
+      <div class="grid-toolbar">
+        <label for="gridSize">宫格布局</label>
+        <select id="gridSize">
+          <option value="3">九宫格</option>
+          <option value="4">十六宫格</option>
+          <option value="5">二十五宫格</option>
+        </select>
+        <span class="grid-hint">点击左侧在线通道播放，双击画面打开播放器和云台控制</span>
+      </div>
+      <div id="videoGrid" class="video-grid grid-3" aria-label="视频宫格"></div>
+
+      <!-- 双击宫格打开：播放器 + 通道控制 Panel -->
+      <div id="detailModal" class="detail-modal" role="dialog" aria-modal="true" aria-label="播放器和通道控制">
+        <button id="detailClose" class="detail-close" type="button" title="关闭">×</button>
+        <div class="detail-dialog">
     <section class="player-panel" aria-label="Jessibuca播放器">
       <div class="player-title">
         <div>
@@ -305,7 +331,6 @@
         </div>
       </div>
       <div class="player-stage" id="playerStage">
-        <div id="jessibucaContainer"></div>
         <div id="playerPlaceholder" class="player-placeholder">ws-flv 播放画面将在这里显示</div>
         <div id="dragLayer" class="drag-layer">
           <div id="dragTip" class="drag-tip">在画面上拖动鼠标框选区域，右键或 Esc 取消</div>
@@ -318,7 +343,7 @@
       </div>
     </section>
 
-    <!-- 右：控制面板 -->
+    <!-- 通道控制 -->
     <aside id="ctrlPanel" class="ctrl-panel" aria-label="通道控制">
       <div class="ctrl-inner">
         <div class="ctrl-header">
@@ -398,8 +423,10 @@
         <pre id="log" class="log" aria-label="请求日志"></pre>
       </div>
     </aside>
+        </div>
+      </div>
+    </section>
   </div>
-  <button id="ctrlToggle" class="ctrl-toggle" type="button" title="收起控制面板">▶</button>
 
   <script>
     (function ($) {
@@ -414,10 +441,11 @@
       var nodeSequence = 0
       var currentChannelId = null
       var currentChannelNode = null
-      var jessibuca = null
       var jessibucaLoaded = false
-      var playRequestSequence = 0
       var controlDetailRequestSequence = 0
+      var gridSlots = []
+      var activeSlot = null
+      var gridSize = 3
 
       $('#apiBaseText').text(API_BASE)
 
@@ -434,6 +462,17 @@
       function setPlayerState(message, type) { $('#playerState').removeClass('success error loading').addClass(type || '').text(message) }
       function setPlayerPlaceholder(message, isError) { $('#playerPlaceholder').text(message).toggleClass('error', Boolean(isError)).show() }
       function hidePlayerPlaceholder() { $('#playerPlaceholder').hide() }
+      function setSlotState(slot, message, type) {
+        slot.state = message
+        slot.stateType = type || ''
+        if (slot.$status) slot.$status.removeClass('success error loading').addClass(slot.stateType).text(message)
+        if (activeSlot === slot) setPlayerState(message, type)
+      }
+      function setSlotPlaceholder(slot, message, isError) {
+        slot.placeholder = message
+        if (slot.$placeholder) slot.$placeholder.text(message).toggleClass('error', Boolean(isError)).toggle(!slot.player || !slot.playing)
+        if (activeSlot === slot) setPlayerPlaceholder(message, isError)
+      }
       function setTreeButtons(enabled) { $('#refreshButton, #expandButton, #collapseButton').prop('disabled', !enabled) }
       function setControlEnabled(enabled) { $('#controlFieldset').prop('disabled', !enabled); if (!enabled) exitDragZoom() }
 
@@ -653,7 +692,11 @@
       }
       $('#dragZoomInBtn').on('click', function () { enterDragZoom('in') })
       $('#dragZoomOutBtn').on('click', function () { enterDragZoom('out') })
-      $(document).on('keydown', function (e) { if (e.key === 'Escape') exitDragZoom() })
+      $(document).on('keydown', function (e) {
+        if (e.key !== 'Escape') return
+        if (dragZoomDirection) exitDragZoom()
+        else if ($('#detailModal').hasClass('visible')) closeDetail()
+      })
       $('#dragLayer').on('contextmenu', function (e) { e.preventDefault(); exitDragZoom() })
 
       $('#dragLayer').on('mousedown', function (e) {
@@ -729,12 +772,6 @@
       }
       $('#queryPresetButton').on('click', function () { safe(queryPresets) })
       $('#callPresetButton').on('click', function () { safe(callPreset) })
-
-      /* ---------------- 右侧面板收起 / 展开 ---------------- */
-      $('#ctrlToggle').on('click', function () {
-        var collapsed = $('#ctrlPanel').toggleClass('collapsed').hasClass('collapsed')
-        $(this).toggleClass('collapsed', collapsed).text(collapsed ? '◀' : '▶').attr('title', collapsed ? '展开控制面板' : '收起控制面板')
-      })
 
       /* ---------------- 登录 ---------------- */
       function login() {
@@ -925,6 +962,115 @@
         $.each(node.children, function (_, child) { collapseAll(child) })
       }
 
+      /* ---------------- 多路宫格 ---------------- */
+      function findSlot(channelId) {
+        return $.grep(gridSlots, function (slot) { return String(slot.channelId) === String(channelId) })[0] || null
+      }
+      function createSlot(index) {
+        var slot = { index: index, node: null, channelId: null, player: null, playing: false, requestId: 0, wsUrl: '', state: '空闲', stateType: '', placeholder: '等待添加通道' }
+        var $slot = $('<div>', { 'class': 'video-slot', 'data-slot-index': index, title: '双击打开播放器和通道控制' })
+        var $container = $('<div>', { 'class': 'slot-container' })
+        var $placeholder = $('<div>', { 'class': 'slot-placeholder', text: slot.placeholder })
+        var $label = $('<div>', { 'class': 'slot-label' })
+        var $slotIndex = $('<span>', { 'class': 'slot-index', text: index + 1 })
+        var $name = $('<span>', { text: '未添加通道' })
+        var $status = $('<span>', { 'class': 'slot-status', text: slot.state })
+        var $remove = $('<button>', { 'class': 'slot-remove', type: 'button', title: '停止并移除', text: '×' })
+        $label.append($slotIndex, $name, $status)
+        $slot.append($container, $placeholder, $label, $remove)
+        slot.$slot = $slot
+        slot.$container = $container
+        slot.$placeholder = $placeholder
+        slot.$name = $name
+        slot.$status = $status
+        $slot.on('click', function () { if (slot.node) selectSlot(slot) })
+        $slot[0].addEventListener('dblclick', function (event) {
+          event.preventDefault()
+          event.stopPropagation()
+          if (slot.node) openDetail(slot)
+        }, true)
+        $remove.on('click', function (event) { event.stopPropagation(); stopSlot(slot, true) })
+        return slot
+      }
+      function renderGrid() {
+        if ($('#detailModal').hasClass('visible')) closeDetail()
+        var oldSlots = gridSlots.slice()
+        var $grid = $('#videoGrid').removeClass('grid-3 grid-4 grid-5').addClass('grid-' + gridSize).empty()
+        var previousSlots = oldSlots.slice(0, gridSize * gridSize)
+        gridSlots = []
+        for (var index = 0; index < gridSize * gridSize; index += 1) {
+          var slot = previousSlots[index] || createSlot(index)
+          slot.index = index
+          slot.$slot.attr('data-slot-index', index)
+          slot.$slot.find('.slot-index').text(index + 1)
+          $grid.append(slot.$slot)
+          gridSlots.push(slot)
+        }
+        $.each(oldSlots.slice(gridSize * gridSize), function (_, slot) { stopSlot(slot, false) })
+      }
+      function clearSlotView(slot) {
+        if (!slot) return
+        if (slot.player) {
+          try { slot.player.pause(); slot.player.clearView() } catch (error) { console.warn('停止 Jessibuca 失败', error) }
+          try { slot.player.destroy() } catch (error) {}
+        }
+        slot.player = null
+        slot.playing = false
+        slot.$container.empty().appendTo(slot.$slot)
+        slot.$placeholder.show()
+      }
+      function selectSlot(slot) {
+        if (!slot) return
+        $('.video-slot.selected').removeClass('selected')
+        slot.$slot.addClass('selected')
+        setSelectedNode(slot.node)
+        activeSlot = slot
+        currentChannelId = slot.channelId
+        if (slot.state) setPlayerState(slot.state, slot.stateType)
+      }
+      function openDetail(slot) {
+        selectSlot(slot)
+        $('#playerStage').append(slot.$container)
+        slot.$placeholder.hide()
+        setPlayerState(slot.state || '未播放', slot.stateType)
+        if (slot.playing) hidePlayerPlaceholder()
+        else setPlayerPlaceholder(slot.placeholder || '等待添加通道', slot.stateType === 'error')
+        $('#detailModal').addClass('visible')
+        $('#detailClose').focus()
+        if (slot.player && slot.player.resize) { setTimeout(function () { slot.player.resize() }, 0) }
+      }
+      function closeDetail() {
+        if (!activeSlot) { $('#detailModal').removeClass('visible'); return }
+        activeSlot.$container.appendTo(activeSlot.$slot)
+        if (activeSlot.$placeholder) activeSlot.$placeholder.toggle(!activeSlot.playing)
+        $('#detailModal').removeClass('visible')
+        exitDragZoom()
+      }
+
+      function stopSlot(slot, remove) {
+        if (!slot) return $.Deferred().resolve().promise()
+        var channelId = slot.channelId
+        slot.requestId += 1
+        if (activeSlot === slot) {
+          closeDetail()
+          activeSlot = null
+          setSelectedNode(null)
+        }
+        var stopPromise = requestStop(channelId)
+        clearSlotView(slot)
+        slot.node = null
+        slot.channelId = null
+        slot.wsUrl = ''
+        slot.state = '空闲'
+        slot.stateType = ''
+        slot.placeholder = '等待添加通道'
+        slot.$name.text('未添加通道')
+        setSlotState(slot, '空闲')
+        setSlotPlaceholder(slot, slot.placeholder, false)
+        if (remove) slot.$slot.removeClass('selected')
+        return stopPromise
+      }
+
       /* ---------------- WebRTC 播放 ---------------- */
       function requestStop(channelId) {
         if (channelId === null || channelId === undefined || channelId === '') return $.Deferred().resolve().promise()
@@ -941,11 +1087,11 @@
       }
 
       /* ---------------- Jessibuca ws-flv 播放（参照 web/src/views/common/jessibuca.vue） ---------------- */
-      function createJessibuca() {
-        if (jessibuca) return jessibuca
+      function createJessibuca(slot) {
+        if (slot.player) return slot.player
         if (!window.Jessibuca) throw new Error('未加载 jessibuca.js，请确认 static/js/jessibuca/ 与本页同源可访问')
-        var container = document.getElementById('jessibucaContainer')
-        jessibuca = new window.Jessibuca({
+        var container = slot.$container[0]
+        slot.player = new window.Jessibuca({
           container: container,
           videoBuffer: 0,
           isResize: true,
@@ -975,43 +1121,41 @@
           openWebglAlignment: false,
           operateBtns: { fullscreen: true, screenshot: true, play: true, audio: true, recorder: false },
           showBandwidth: true,
-          supportDblclickFullscreen: true,
+          supportDblclickFullscreen: false,
           useWebFullSreen: true,
           wasmDecodeErrorReplay: true,
           wcsUseVideoRendcer: true
         })
-        jessibuca.on('load', function () { jessibucaLoaded = true })
-        jessibuca.on('play', function () {
-          hidePlayerPlaceholder()
-          setPlayerState('播放中', 'success')
-          log('通道 ' + currentChannelId + ' ws-flv 播放成功', 'success')
+        slot.player.on('load', function () { jessibucaLoaded = true })
+        slot.player.on('play', function () {
+          slot.playing = true
+          setSlotState(slot, '播放中', 'success')
+          setSlotPlaceholder(slot, '', false)
+          if (activeSlot === slot) hidePlayerPlaceholder()
+          log('通道 ' + slot.channelId + ' ws-flv 播放成功', 'success')
         })
-        jessibuca.on('pause', function () { setPlayerState('已暂停') })
-        jessibuca.on('videoInfo', function (msg) { log('视频信息：' + JSON.stringify(msg)) })
-        jessibuca.on('audioInfo', function (msg) { log('音频信息：' + JSON.stringify(msg)) })
-        jessibuca.on('error', function (msg) {
-          setPlayerState('播放错误', 'error')
-          setPlayerPlaceholder('Jessibuca 错误：' + msg, true)
+        slot.player.on('pause', function () { slot.playing = false; setSlotState(slot, '已暂停') })
+        slot.player.on('videoInfo', function (msg) { log('通道 ' + slot.channelId + ' 视频信息：' + JSON.stringify(msg)) })
+        slot.player.on('audioInfo', function (msg) { log('通道 ' + slot.channelId + ' 音频信息：' + JSON.stringify(msg)) })
+        slot.player.on('error', function (msg) {
+          slot.playing = false
+          setSlotState(slot, '播放错误', 'error')
+          setSlotPlaceholder(slot, 'Jessibuca 错误：' + msg, true)
           log('Jessibuca error: ' + msg, 'error')
         })
-        jessibuca.on('timeout', function (msg) {
-          setPlayerState('连接超时', 'error')
-          setPlayerPlaceholder('ws-flv 连接超时，请检查 nginx 是否代理了该流路径。', true)
+        slot.player.on('timeout', function (msg) {
+          slot.playing = false
+          setSlotState(slot, '连接超时', 'error')
+          setSlotPlaceholder(slot, 'ws-flv 连接超时，请检查 nginx 是否代理了该流路径。', true)
           log('Jessibuca timeout: ' + msg, 'error')
         })
-        jessibuca.on('loadingTimeout', function (msg) { log('Jessibuca loadingTimeout: ' + msg, 'error') })
-        jessibuca.on('delayTimeout', function (msg) { log('Jessibuca delayTimeout: ' + msg, 'error') })
-        return jessibuca
+        slot.player.on('loadingTimeout', function (msg) { log('通道 ' + slot.channelId + ' loadingTimeout: ' + msg, 'error') })
+        slot.player.on('delayTimeout', function (msg) { log('通道 ' + slot.channelId + ' delayTimeout: ' + msg, 'error') })
+        return slot.player
       }
 
-      function closePlayer() {
-        if (jessibuca) {
-          try { jessibuca.pause(); jessibuca.clearView() } catch (error) { console.warn('停止 Jessibuca 失败', error) }
-        }
-      }
-
-      function jessibucaPlay(url) {
-        var player = createJessibuca()
+      function jessibucaPlay(slot, url) {
+        var player = createJessibuca(slot)
         if (player.hasLoaded && player.hasLoaded()) {
           player.play(url)
         } else if (jessibucaLoaded) {
@@ -1046,33 +1190,39 @@
         return forceWsPort(value || '')
       }
 
-      function startPlayback(node, requestId) {
+      function startPlayback(slot, node, requestId) {
         var channelId = nodeChannelId(node.data)
         if (channelId === '') throw new Error('通道缺少数据库 ID，无法调用播放接口')
-        setPlayerState('正在请求流…', 'loading')
-        setPlayerPlaceholder('正在请求媒体流并建立 ws-flv 连接…')
+        setSlotState(slot, '正在请求流…', 'loading')
+        setSlotPlaceholder(slot, '正在请求媒体流并建立 ws-flv 连接…')
         log('使用通道 ID ' + channelId + ' 调用 WVP 播放接口')
         return requestJson('/api/common/channel/play', {
           data: { channelId: channelId }, headers: { 'access-token': token }, timeout: 60000
         }).then(function (streamContent) {
-          if (requestId !== playRequestSequence) { requestStop(channelId); return null }
+          if (requestId !== slot.requestId) {
+            if (!findSlot(channelId)) requestStop(channelId)
+            return null
+          }
           var info = (streamContent && streamContent.transcodeStream) || streamContent
           var wsUrl = getWsFlvUrl(info)
           if (!wsUrl) throw new Error('播放接口未返回 ws_flv/wss_flv 地址')
-          currentChannelId = channelId
-          $('#playerChannelId').text('通道 ID：' + channelId + '｜ws-flv：' + wsUrl)
+          slot.wsUrl = wsUrl
+          if (activeSlot === slot) {
+            currentChannelId = channelId
+            $('#playerChannelId').text('通道 ID：' + channelId + '｜ws-flv：' + wsUrl)
+          }
           log('收到 ws-flv 地址：' + wsUrl)
           try {
-            jessibucaPlay(wsUrl)
+            jessibucaPlay(slot, wsUrl)
           } catch (error) { throw new Error('创建 Jessibuca 播放器失败：' + (error.message || error)) }
           return streamContent
         }).catch(function (error) {
-          if (requestId !== playRequestSequence) return null
-          closePlayer()
-          currentChannelId = null
+          if (requestId !== slot.requestId) return null
+          clearSlotView(slot)
+          if (activeSlot === slot) currentChannelId = null
           var message = error && error.message ? error.message : 'ws-flv 播放失败'
-          setPlayerState('播放失败', 'error')
-          setPlayerPlaceholder(message, true)
+          setSlotState(slot, '播放失败', 'error')
+          setSlotPlaceholder(slot, message, true)
           log(message, 'error')
           throw error
         })
@@ -1081,39 +1231,58 @@
       function playChannel(node) {
         var data = node.data
         var channelId = nodeChannelId(data)
-        setSelectedNode(node)
-        var requestId = ++playRequestSequence
-        var oldChannelId = currentChannelId
-        closePlayer()
-        currentChannelId = null
-        setPlayerState('准备播放', 'loading')
+        if (channelId === '') {
+          log('通道 ' + nodeLabel(data) + ' 缺少数据库 ID，无法播放', 'error')
+          return
+        }
+        if ($('#detailModal').hasClass('visible')) closeDetail()
+        var slot = findSlot(channelId)
+        if (!slot) slot = $.grep(gridSlots, function (item) { return !item.node })[0] || activeSlot || gridSlots[0]
+        if (!slot) return
+        var stopPromise = stopSlot(slot, false)
+        slot.node = node
+        slot.channelId = channelId
+        slot.$name.text(nodeLabel(data))
+        slot.placeholder = '准备播放…'
+        setSlotState(slot, '准备播放', 'loading')
+        setSlotPlaceholder(slot, slot.placeholder, false)
+        selectSlot(slot)
+        var requestId = ++slot.requestId
         if (!nodeOnline(data)) {
-          setPlayerState('通道离线', 'error')
-          setPlayerPlaceholder('当前通道离线，未发起播放请求。', true)
+          setSlotState(slot, '通道离线', 'error')
+          setSlotPlaceholder(slot, '当前通道离线，未发起播放请求。', true)
           log('通道 ' + (channelId || nodeLabel(data)) + ' 当前离线，跳过播放', 'error')
           return
         }
-        var stopPromise = oldChannelId ? requestStop(oldChannelId) : $.Deferred().resolve().promise()
         stopPromise.always(function () {
-          if (requestId !== playRequestSequence) return
-          startPlayback(node, requestId).catch(function () {})
+          if (requestId !== slot.requestId) return
+          startPlayback(slot, node, requestId).catch(function () {})
         })
       }
 
       function stopPlayback() {
-        ++playRequestSequence
-        var oldChannelId = currentChannelId
+        if (activeSlot) {
+          stopSlot(activeSlot, true)
+          log('已停止当前宫格播放', 'success')
+          return
+        }
+        log('当前没有选中的宫格', 'error')
+      }
+
+      function stopAllPlayback() {
+        var slots = gridSlots.slice()
+        $.each(slots, function (_, slot) { stopSlot(slot, true) })
+        activeSlot = null
         currentChannelId = null
-        closePlayer()
+        $('#detailModal').removeClass('visible')
         setPlayerState('未播放')
         setPlayerPlaceholder('ws-flv 播放画面将在这里显示')
-        if (oldChannelId) requestStop(oldChannelId)
-        log('已停止本地 Jessibuca 播放器', 'success')
+        log('已停止全部宫格播放', 'success')
       }
 
       function refreshTree() {
         if (!token) { setStatus('未登录', 'error'); return }
-        stopPlayback()
+        stopAllPlayback()
         setSelectedNode(null)
         replaceRoot()
         setStatus('正在加载树…', 'loading')
@@ -1135,10 +1304,23 @@
         setStatus('已收起全部', 'success')
       })
       $('#stopButton').on('click', stopPlayback)
-      $(window).on('beforeunload', function () { if (jessibuca) { try { jessibuca.destroy() } catch (e) {} } })
+      $('#gridSize').on('change', function () {
+        gridSize = Number($(this).val()) || 3
+        renderGrid()
+      })
+      $('#detailClose').on('click', closeDetail)
+      $('#detailModal').on('click', function (event) {
+        if (event.target === this) closeDetail()
+      })
+      $(window).on('beforeunload', function () {
+        $.each(gridSlots, function (_, slot) {
+          if (slot.player) { try { slot.player.destroy() } catch (e) {} }
+        })
+      })
 
       setControlEnabled(false)
       setSpeed(50)
+      renderGrid()
       replaceRoot()
       login().then(refreshTree).catch(function () {
         $('#treeRoot').empty().append($('<li>', { 'class': 'error-row', text: '自动登录失败，请检查浏览器控制台、API 地址和账号配置。' }))
