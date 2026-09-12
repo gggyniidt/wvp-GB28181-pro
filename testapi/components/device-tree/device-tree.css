@@ -1,0 +1,47 @@
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree ul { margin-left: 18px; border-left: 1px dashed #cbd5e1; }
+.tree-node { min-width: max-content; }
+.tree-row { display: flex; align-items: center; min-height: 34px; padding: 4px 6px; border-radius: 4px; white-space: nowrap; cursor: default; }
+.tree-row:hover { background: #f5f7fa; }
+.tree-row.channel-row { cursor: pointer; }
+.tree-row.channel-row:hover { background: var(--primary-light); }
+.tree-row.selected { background: #dbeafe; box-shadow: inset 3px 0 0 var(--primary); }
+.tree-toggle { width: 22px; height: 22px; margin-right: 2px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #64748b; cursor: pointer; font-size: 15px; line-height: 22px; }
+.tree-toggle:hover { background: #e2e8f0; }
+.tree-toggle.empty { visibility: hidden; }
+.tree-toggle.loading { font-size: 12px; }
+.node-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; margin-right: 5px; font-size: 15px; }
+.node-icon.group { color: var(--primary); }
+.node-icon.channel.online { color: #16a34a; }
+.node-icon.channel.offline { color: #94a3b8; }
+.node-name { color: #1e293b; font-weight: 500; }
+.node-meta { margin-left: 8px; color: #94a3b8; font-size: 11px; }
+.node-status { margin-left: 6px; padding: 0 6px; border-radius: 10px; font-size: 11px; }
+.node-status.online { background: #dcfce7; color: #15803d; }
+.node-status.offline { background: #f1f5f9; color: #64748b; }
+.loading-row, .empty-row, .error-row { padding: 10px 8px; color: var(--muted); font-size: 12px; }
+.error-row { color: var(--danger); }
+    /* ===== 树 ===== */
+    .tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+    .tree ul { margin-left: 18px; border-left: 1px dashed #cbd5e1; }
+    .tree-node { min-width: max-content; }
+    .tree-row { display: flex; align-items: center; min-height: 34px; padding: 4px 6px; border-radius: 4px; white-space: nowrap; cursor: default; }
+    .tree-row:hover { background: #f5f7fa; }
+    .tree-row.channel-row { cursor: pointer; }
+    .tree-row.channel-row:hover { background: var(--primary-light); }
+    .tree-row.selected { background: #dbeafe; box-shadow: inset 3px 0 0 var(--primary); }
+    .tree-toggle { width: 22px; height: 22px; margin-right: 2px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #64748b; cursor: pointer; font-size: 15px; line-height: 22px; }
+    .tree-toggle:hover { background: #e2e8f0; }
+    .tree-toggle.empty { visibility: hidden; }
+    .tree-toggle.loading { font-size: 12px; }
+    .node-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; margin-right: 5px; font-size: 15px; }
+    .node-icon.group { color: var(--primary); }
+    .node-icon.channel.online { color: #16a34a; }
+    .node-icon.channel.offline { color: #94a3b8; }
+    .node-name { color: #1e293b; font-weight: 500; }
+    .node-meta { margin-left: 8px; color: #94a3b8; font-size: 11px; }
+    .node-status { margin-left: 6px; padding: 0 6px; border-radius: 10px; font-size: 11px; }
+    .node-status.online { background: #dcfce7; color: #15803d; }
+    .node-status.offline { background: #f1f5f9; color: #64748b; }
+    .loading-row, .empty-row, .error-row { padding: 10px 8px; color: var(--muted); font-size: 12px; }
+    .error-row { color: var(--danger); }

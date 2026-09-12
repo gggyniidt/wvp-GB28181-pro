@@ -1,0 +1,88 @@
+record-panel { display: contents; }
+.record-modal { position: absolute; inset: 0; z-index: 30; display: none; background: #1e1e1e; }
+.record-modal.visible { display: flex; }
+.record-dialog { display: flex; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: var(--panel); }
+.record-sidebar { width: 255px; flex: none; display: flex; flex-direction: column; padding: 12px; border-right: 1px solid var(--border); background: #fff; }
+.record-sidebar h3 { margin: 0 0 10px; font-size: 15px; }
+.record-channel { margin-bottom: 10px; color: #606266; font-size: 12px; word-break: break-all; }
+.record-date-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.record-date-row input { min-width: 0; flex: 1; height: 30px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+.record-date-row button, .record-list-item button { min-height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: #606266; cursor: pointer; }
+.record-date-row button:hover, .record-list-item button:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.record-list-title { padding-bottom: 6px; border-bottom: 1px solid var(--border); color: #606266; font-size: 12px; }
+.record-list { flex: 1; overflow: auto; margin: 0; padding: 6px 0 0; list-style: none; }
+.record-list-item { display: flex; gap: 4px; margin-bottom: 5px; }
+.record-list-item > button:first-child { flex: 1; min-width: 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.record-list-item > button.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.record-list-item .record-download { width: 30px; padding: 0; }
+.record-empty, .record-error { padding: 8px 0; color: var(--muted); font-size: 12px; }
+.record-error { color: var(--danger); }
+.record-main { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; padding: 12px; background: #1e1e1e; }
+.record-main-header { display: flex; align-items: center; gap: 10px; min-height: 38px; color: #e2e8f0; }
+.record-main-header h2 { margin: 0; font-size: 15px; }
+.record-main-header > div { min-width: 0; }
+.record-main-header #recordIds { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.record-close { margin-left: auto; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: rgba(15,23,42,0.72); color: #fff; cursor: pointer; font-size: 20px; }
+.record-close:hover { background: var(--danger); }
+.record-stage { position: relative; min-height: 0; flex: 1; overflow: hidden; border: 1px solid #334155; border-radius: 4px; background: #000; }
+.record-player-container { position: absolute; inset: 0; }
+.record-player-container video { width: 100%; height: 100%; object-fit: contain; }
+.record-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; color: #94a3b8; text-align: center; }
+.record-placeholder.error { color: #fca5a5; }
+.record-timeline { position: relative; height: 28px; margin-top: 8px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; }
+.record-timeline-empty { padding: 4px 8px; color: #64748b; font-size: 11px; }
+.record-segment { position: absolute; top: 3px; bottom: 3px; min-width: 3px; border-radius: 2px; background: #2563eb; cursor: pointer; }
+.record-segment:hover, .record-segment.active { background: #60a5fa; }
+.record-time-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: #cbd5e1; font-size: 12px; }
+.record-time-row span { width: 150px; }
+.record-time-row input { flex: 1; min-width: 0; accent-color: var(--primary); }
+.record-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.record-toolbar button, .record-toolbar select { min-height: 30px; padding: 0 8px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; color: #e2e8f0; cursor: pointer; font-size: 12px; }
+.record-toolbar button:hover:not(:disabled), .record-toolbar select:hover { border-color: var(--primary); color: #fff; }
+.record-state { margin-left: auto; color: #94a3b8; font-size: 12px; }
+.record-state.success { color: #86efac; }
+.record-state.error { color: #fca5a5; }
+.record-state.loading { color: #fcd34d; }
+.record-download-state { min-height: 18px; margin-top: 4px; color: #fcd34d; font-size: 11px; }
+    /* ===== 国标录像面板 ===== */
+    .record-modal { position: absolute; inset: 0; z-index: 30; display: none; background: #1e1e1e; }
+    .record-modal.visible { display: flex; }
+    .record-dialog { display: flex; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: var(--panel); }
+    .record-sidebar { width: 255px; flex: none; display: flex; flex-direction: column; padding: 12px; border-right: 1px solid var(--border); background: #fff; }
+    .record-sidebar h3 { margin: 0 0 10px; font-size: 15px; }
+    .record-channel { margin-bottom: 10px; color: #606266; font-size: 12px; word-break: break-all; }
+    .record-date-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .record-date-row input { min-width: 0; flex: 1; height: 30px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+    .record-date-row button, .record-list-item button { min-height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: #606266; cursor: pointer; }
+    .record-date-row button:hover, .record-list-item button:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .record-list-title { padding-bottom: 6px; border-bottom: 1px solid var(--border); color: #606266; font-size: 12px; }
+    .record-list { flex: 1; min-height: 0; overflow: auto; margin: 8px 0 0; padding: 0; list-style: none; }
+    .record-list-item { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+    .record-list-item button { min-width: 0; flex: 1; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+    .record-list-item button.active { border-color: var(--danger); background: #fef0f0; color: var(--danger); }
+    .record-list-item .record-download { flex: none; width: 30px; padding: 0; text-align: center; }
+    .record-empty, .record-error { padding: 16px 4px; color: var(--muted); font-size: 12px; text-align: center; }
+    .record-error { color: var(--danger); }
+    .record-main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 12px; background: #1e1e1e; }
+    .record-main-header { display: flex; align-items: center; gap: 10px; min-height: 32px; color: #e5e7eb; }
+    .record-main-header h2 { margin: 0; font-size: 16px; }
+    .record-main-header span { color: #9ca3af; font-size: 12px; word-break: break-all; }
+    .record-close { margin-left: auto; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: rgba(15,23,42,0.72); color: #fff; cursor: pointer; font-size: 20px; line-height: 1; }
+    .record-close:hover { background: var(--danger); }
+    .record-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; margin-top: 8px; overflow: hidden; border-radius: 6px; background: #000; }
+    .record-player-container { position: absolute; inset: 0; }
+    .record-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; color: #94a3b8; text-align: center; pointer-events: none; }
+    .record-placeholder.error { color: #fca5a5; }
+    .record-timeline { position: relative; flex: none; height: 42px; margin-top: 8px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; }
+    .record-segment { position: absolute; top: 8px; height: 24px; min-width: 2px; border-radius: 3px; background: #017690; cursor: pointer; }
+    .record-segment:hover, .record-segment.active { background: #22c55e; }
+    .record-timeline-empty { padding: 10px; color: #94a3b8; font-size: 12px; text-align: center; }
+    .record-time-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: #cbd5e1; font-size: 12px; }
+    .record-time-row input { flex: 1; accent-color: var(--primary); }
+    .record-toolbar { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    .record-toolbar button, .record-toolbar select { min-height: 30px; padding: 0 9px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; color: #e2e8f0; cursor: pointer; }
+    .record-toolbar button:hover:not(:disabled), .record-toolbar select:hover { border-color: var(--primary); color: #fff; }
+    .record-toolbar button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .record-state { margin-left: auto; color: #9ca3af; font-size: 12px; }
+    .record-state.success { color: #86efac; } .record-state.error { color: #fca5a5; } .record-state.loading { color: #fcd34d; }
+    .record-download-state { margin-top: 6px; color: #94a3b8; font-size: 12px; }

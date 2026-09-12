@@ -1,0 +1,100 @@
+    :root {
+      color-scheme: light;
+      --primary: #409EFF;
+      --primary-dark: #337ecc;
+      --primary-light: #ecf5ff;
+      --text: #303133;
+      --muted: #909399;
+      --border: #dcdfe6;
+      --panel: #ffffff;
+      --background: #f4f6f8;
+      --success: #67c23a;
+      --danger: #f56c6c;
+      --warning: #e6a23c;
+      --tree-width: 300px;
+      --ctrl-width: 280px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--background);
+      color: var(--text);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    /* ===== 顶栏 ===== */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .topbar h1 { margin: 0 16px 0 0; font-size: 16px; font-weight: 600; white-space: nowrap; }
+    .topbar button, .player-toolbar button, .ctrl-toggle {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 12px;
+      background: #fff;
+      color: #606266;
+      cursor: pointer;
+      font-size: 13px;
+      transition: 0.15s ease;
+    }
+    .topbar button:hover:not(:disabled), .player-toolbar button:hover:not(:disabled), .ctrl-toggle:hover {
+      border-color: var(--primary); color: var(--primary); background: var(--primary-light);
+    }
+    button.primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    button.primary:hover:not(:disabled) { background: var(--primary-dark) !important; color: #fff !important; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .status { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--muted); font-size: 13px; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #c0c4cc; }
+    .status.success { color: var(--success); } .status.success::before { background: var(--success); }
+    .status.error { color: var(--danger); } .status.error::before { background: var(--danger); }
+    .status.loading { color: var(--warning); } .status.loading::before { background: var(--warning); }
+    .api-text { color: var(--muted); font-size: 12px; }
+    .api-text code { padding: 1px 5px; border-radius: 3px; background: #f1f5f9; }
+
+    /* ===== 工作区 ===== */
+    .workspace {
+      position: fixed;
+      top: 48px; left: 0; right: 0; bottom: 0;
+      display: flex;
+    }
+    .tree-panel {
+      width: var(--tree-width);
+      flex: none;
+      overflow: auto;
+      padding: 10px 12px 20px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+    }
+    .grid-panel { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 12px; background: #1e1e1e; }
+    .grid-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #cbd5e1; }
+    .grid-toolbar label { font-size: 13px; }
+    .grid-toolbar select { min-height: 30px; padding: 3px 8px; border: 1px solid #475569; border-radius: 4px; background: #0f172a; color: #e2e8f0; }
+    .grid-hint { margin-left: auto; color: #94a3b8; font-size: 12px; }
+    /* ===== 日志 ===== */
+    .log {
+      flex: none;
+      max-height: 120px;
+      overflow: auto;
+      margin: 0;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      background: #0f172a;
+      color: #cbd5e1;
+      font: 11px/1.6 Consolas, Monaco, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
